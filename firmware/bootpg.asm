@@ -11,6 +11,9 @@ VOLDRIVE1 = $F6
 GVOLDRIVE0 = $F7
 GVOLDRIVE1 = $F8
 LENGTH = $F9
+LASTVOL = $FA
+VOL = $FB
+
 BLKBUF = $1000
 
 COMMAND = $42
@@ -58,53 +61,47 @@ START:
          JSR SETKBD
          JSR HOME        ; clear screen
          JSR GETVOL      ; get volume number
+         LDA #(VOLSEL-MSGS) ; show title
+         JSR DISPTITLE
+         LDA #23
+         JSR GOTOROW
+         LDA #(A2FOREVER-MSGS) ; show title
+         JSR DISPTITLE
 
 READUNIT:
-         LDA #0          ; use screen row to store drive number (cheezy)
-         STA CV
+         LDA #0
+         STA VOL         ; set drive number
+         LDA #3
+         STA CV          ; set screen row
 UNITLOOP:
          JSR VTAB
 
-         LDA CV          ; set both drives to location
+         LDA VOL         ; set both drives to location
          STA VOLDRIVE0
          STA VOLDRIVE1
          JSR SETVOL
 
          LDA #0          ; start at column 0
-         STA CH
-         LDA CV          ; print hex digit for row
-         JSR PRHEX
-         INC CH          ; skip space
-         JSR READB       ; read a block from drive 0
-         JSR DISPNAME    ; display name
+         JSR DISPVOLUME  ; show item number and volume name
 
-         LDA #20         ; start at column 20
-         STA CH
-         LDA CV
-         JSR PRHEX
-         INC CH
          LDA UNIT
-         ORA #$80
+         ORA #$80        ; check SD-card 2 (drive 1)
          STA UNIT        ; set high bit to get drive 1
-         JSR READB       ; read block
-         JSR DISPNAME
+         LDA #20         ; start at column 20
+         JSR DISPVOLUME  ; show item number for volume
          LDA UNIT        ; clear high bit
          AND #$7F
          STA UNIT
 
-         INC CV          ; go to next row/volume
-         LDA CV
+         INC CV          ; go to next row
+         INC VOL         ; go to next volume
+         LDA VOL
          CMP #$10
          BCC UNITLOOP
 
-VANITY:  
-         LDA #0
-         STA CH
-         LDA #18
-         STA CV
-         JSR VTAB
-         LDX #(VOLSEL-MSGS)
-         JSR DISPMSG
+VANITY:
+         LDA #21         ; row 21
+         JSR GOTOROW
 
 DISPCUR: 
          JSR CARDMS0
@@ -124,12 +121,14 @@ DISPCUR:
 GETVL:
          LDA #10
          STA CH
-         JSR GETHEX
+         LDA GVOLDRIVE0
+         JSR ASKVOL
          STA VOLDRIVE0
          JSR DVHEX
          LDA #30
          STA CH
-         JSR GETHEX
+         LDA GVOLDRIVE1
+         JSR ASKVOL
          STA VOLDRIVE1
          JSR DVHEX
 
@@ -146,9 +145,16 @@ ABORT:
          PLA
          JMP REBOOT
 
-GETHEX:  
+ASKVOL:
+         STA LASTVOL   ; remember previous volume selection
+GETHEX:
          JSR RDKEY
-         CMP #27+128
+         CMP #13+128   ; RETURN key
+         BNE NORET
+         LDA LASTVOL   ; load previous volume selection
+         RTS
+NORET:
+         CMP #27+128   ; ESCAPE key
          BEQ ABORT
          CMP #'!'+128   ; is !
          BEQ SPCASE
@@ -183,6 +189,14 @@ DSPEC:
          LDA #'!'+128
          JMP COUT
 
+DISPVOLUME:              ; display volume number/name
+         STA CH
+         LDA VOL         ; print hex digit for row
+         JSR PRHEX
+         LDA #':'+128
+         JSR COUT        ; print ":"
+         INC CH          ; skip space
+         JSR READB       ; read a block from drive 0
 DISPNAME:
          LDX #0
          BCS NOHEADER    ; didn't read a sector
@@ -207,42 +221,72 @@ DISPL:
 NOHEADER:
          JMP DISPMSG
 
+; generate Apple-ASCII string (with MSB set)
 .MACRO   ASCHI STR
 .REPEAT  .STRLEN (STR), C
 .BYTE    .STRAT (STR, C) | $80
 .ENDREP
 .ENDMACRO
 
+; generated string with inverted Apple character
+.MACRO   ASCINV STR
+.REPEAT  .STRLEN (STR), C
+.BYTE    .STRAT (STR, C) & $3F
+.ENDREP
+.ENDMACRO
+
 MSGS:
 
 NOHDR:     
-         ASCHI   "<NO VOLUME>"
-NOHDRE:
-.BYTE 0
+         ASCHI   "---"
+        .BYTE 0
 
 CARDMSG:     
          ASCHI   "CARD 1:"
-CARDMSGE:
-.BYTE 0
+        .BYTE 0
+
+A2FOREVER:
+         ASCINV  "  APPLE II FOREVER!"
+        .BYTE 0
 
 VOLSEL:     
-         ASCHI   "DAN ][ VOLUME SELECTOR"
-		 .BYTE   13+128
-VOLSELE:
-.BYTE 0
+         ASCINV  "DAN II VOLUME SELECTOR"
+	.BYTE 0
+
+GOTOROW:
+         STA CV          ; set row
+         LDA #0
+         STA CH          ; set column to 0
+         JMP VTAB
+
+DISPTITLE:
+         PHA             ; remember message address
+         LDA CV          ; remember row
+         PHA
+         LDX #$26        ; clear 39 characters ($00-$26)
+LOOPLINE:
+         LDA #$20        ; inverse space
+         JSR COUT
+         DEX
+         BPL LOOPLINE
+
+         PLA
+         JSR GOTOROW     ; restore row
+         LDA #8          ; center title message horizontally
+         STA CH
+         PLA             ; get message address
+         TAX
+         JMP DISPMSG
 
 CARDMS1: LDA #'2'+128
          STA CARDMSG+5
 CARDMS0:
          LDX #(CARDMSG-MSGS)
-         JMP DISPMSG
-
 DISPMSG: LDA MSGS,X
          BEQ RTSL
          JSR COUT
          INX
          BNE DISPMSG
-
 BUFLOC:
          LDA #<BLKBUF    ; store buffer location    
          STA BUFLO
@@ -285,6 +329,7 @@ GETVOL:
          RTS
 
 REBOOT:
+         JSR HOME        ; clear screen
          LDA #$00        ; store zero byte at $F1
          STA LOWBT
          JMP (LOWBT)     ; jump back and reboot       

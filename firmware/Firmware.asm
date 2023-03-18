@@ -17,6 +17,11 @@
   nodev = $28  ;no device connected
   wperr = $2B  ;write protect error
 
+; Keys
+  ESCAPE = 27+128
+  RETURN = 13+128
+  SPACE  = 32+128
+
    .org  $C700
   ;code is relocatable
   ; but set to $c700 for
@@ -74,11 +79,11 @@ waitkey:
     lda  $c000      ; do we have a key
     bpl  nokey
     sta  $c010
-    cmp  #27+128    ; see if its an esc key
+    cmp  #ESCAPE    ; see if ESCAPE key is pressed
     beq  bootslot
-    cmp  #13+128    ; see if its an enter key
+    cmp  #SPACE     ; see if SPACE is pressed
     beq  jumpbank   ; go to configuration page
-    cmp  #32+128    ; see if space is pressed
+    cmp  #RETURN    ; see if RETURN is pressed
     bne  nokey
     sta  command
 nokey:
@@ -190,15 +195,13 @@ readbytes:
 .endrep
 .endmacro
 
-msg:   aschi   "DAN ][ PRESS RTN"
+msg:   aschi   "DAN II: PRESS RETURN"
 endmsg:
-
-.byte    0
 
 ; These bytes need to be at the top of the 256 byte firmware as ProDOS
 ; uses these to find the entry point and drive capabilities
 
-.repeat	251-<endmsg
+.repeat	252-<endmsg
 .byte 0
 .endrepeat
 
