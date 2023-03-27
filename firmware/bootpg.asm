@@ -25,6 +25,7 @@ BLKHI   = $47
 
 CH = $24
 CV = $25
+INVFLG = $32
 
 HOME =   $FC58
 PRHEX =  $FDE3
@@ -35,6 +36,8 @@ VTAB =   $FC22
 SETVID = $FE93
 SETKBD = $FE89
 
+;DEBUG = 1
+
          .ORG $800
 
 START:
@@ -43,7 +46,12 @@ START:
          STA INSTRUC
          LDA #$60        ; store RTS at $F3
          STA RTSBYT
+.IFNDEF DEBUG
          LDA UNIT        ; put unit in A register
+.ELSE
+         LDA #$70        ; slot 7
+         STA UNIT
+.ENDIF
          LSR A           ; shift to lower nibble
          LSR A
          LSR A
@@ -51,8 +59,13 @@ START:
          AND #$07        ; just in case we booted from drive 2 ?
          ORA #$C0        ; make high nibble $C0
          STA HIGHBT      ; store high byte in memory location
+
          LDY #$00        ; store zero in low byte
-         STY LOWBT
+         STY BUFLO
+         LDA #>BLKBUF    ; store buffer location (lower address byte must be 0)
+         STA BUFHI
+
+         STY LOWBT       ; store 0
          DEY             ; make zero a $FF
          LDA (LOWBT),Y   ; get low byte of address
          STA LOWBT       ; place at low byte
@@ -82,15 +95,21 @@ UNITLOOP:
          JSR SETVOL
 
          LDA #0          ; start at column 0
+         LDY GVOLDRIVE0
          JSR DISPVOLUME  ; show item number and volume name
+         LDA #$FF
+         STA INVFLG
 
          LDA UNIT
          ORA #$80        ; check SD-card 2 (drive 1)
          STA UNIT        ; set high bit to get drive 1
          LDA #20         ; start at column 20
+         LDY GVOLDRIVE1
          JSR DISPVOLUME  ; show item number for volume
-         LDA UNIT        ; clear high bit
-         AND #$7F
+         LDA #$FF
+         STA INVFLG
+         LSR A
+         AND UNIT        ; clear high bit
          STA UNIT
 
          INC CV          ; go to next row
@@ -119,17 +138,15 @@ DISPCUR:
          JSR DVHEX
 
 GETVL:
-         LDA #10
-         STA CH
-         LDA GVOLDRIVE0
-         JSR ASKVOL
-         STA VOLDRIVE0
+         LDY #10        ; cursor position
+         LDA GVOLDRIVE0 ; load default value (currently selected drive)
+         JSR ASKVOL     ; ask for user selection
+         STA VOLDRIVE0  ; store newly selected drive
          JSR DVHEX
-         LDA #30
-         STA CH
-         LDA GVOLDRIVE1
-         JSR ASKVOL
-         STA VOLDRIVE1
+         LDY #30        ; cursor position
+         LDA GVOLDRIVE1 ; load default value (currently selected drive)
+         JSR ASKVOL     ; ask for user selection
+         STA VOLDRIVE1  ; store newly selected drive
          JSR DVHEX
 
          JSR SETVOLW
@@ -146,6 +163,7 @@ ABORT:
          JMP REBOOT
 
 ASKVOL:
+         STY CH
          STA LASTVOL   ; remember previous volume selection
 GETHEX:
          JSR RDKEY
@@ -156,7 +174,7 @@ GETHEX:
 NORET:
          CMP #27+128   ; ESCAPE key
          BEQ ABORT
-         CMP #'!'+128   ; is !
+         CMP #'!'+128  ; is !
          BEQ SPCASE
          CMP #'a'+128
          BCC NOLOWER
@@ -192,24 +210,33 @@ DSPEC:
 DISPVOLUME:              ; display volume number/name
          STA CH
          LDA VOL         ; print hex digit for row
+         PHA
          JSR PRHEX
          LDA #':'+128
          JSR COUT        ; print ":"
          INC CH          ; skip space
+         STY LENGTH      ; scratch
+         PLA
+         CMP LENGTH
+         BNE NOINVFLG
+         LDA #$3F
+         STA INVFLG      ; enable inverse printing of selected volume name
+NOINVFLG:
          JSR READB       ; read a block from drive 0
 DISPNAME:
-         LDX #0
          BCS NOHEADER    ; didn't read a sector
          LDA BLKBUF+5    ; if greater than $80 not a valid ASCII
          BMI NOHEADER
          LDA BLKBUF+4    ; look at volume directory header byte
+         TAX
          AND #$F0
          CMP #$F0
          BNE NOHEADER
-         LDA BLKBUF+4
+         TXA
          AND #$0F
          BEQ NOHEADER
          STA LENGTH
+         LDX #0
 DISPL:
          LDA BLKBUF+5,X
          ORA #$80
@@ -219,6 +246,7 @@ DISPL:
          BNE DISPL
          RTS
 NOHEADER:
+         LDX #(NOHDR-MSGS)
          JMP DISPMSG
 
 ; generate Apple-ASCII string (with MSB set)
@@ -228,7 +256,7 @@ NOHEADER:
 .ENDREP
 .ENDMACRO
 
-; generated string with inverted Apple character
+; generated string with inverted characters
 .MACRO   ASCINV STR
 .REPEAT  .STRLEN (STR), C
 .BYTE    .STRAT (STR, C) & $3F
@@ -261,8 +289,6 @@ GOTOROW:
 
 DISPTITLE:
          PHA             ; remember message address
-         LDA CV          ; remember row
-         PHA
          LDX #$26        ; clear 39 characters ($00-$26)
 LOOPLINE:
          LDA #$20        ; inverse space
@@ -270,13 +296,11 @@ LOOPLINE:
          DEX
          BPL LOOPLINE
 
-         PLA
-         JSR GOTOROW     ; restore row
-         LDA #8          ; center title message horizontally
-         STA CH
          PLA             ; get message address
          TAX
-         JMP DISPMSG
+         LDA #8          ; center title message horizontally
+         STA CH
+         BNE DISPMSG     ; unconditional jump
 
 CARDMS1: LDA #'2'+128
          STA CARDMSG+5
@@ -287,21 +311,15 @@ DISPMSG: LDA MSGS,X
          JSR COUT
          INX
          BNE DISPMSG
-BUFLOC:
-         LDA #<BLKBUF    ; store buffer location    
-         STA BUFLO
-         LDA #>BLKBUF
-         STA BUFHI
 RTSL:    RTS
 
 READB:
-         LDA #$01        ; read block
-         STA COMMAND     ; store at $42
-         JSR BUFLOC      ; store buffer location
-         LDA #$02        ; which block (in this example $0002)
-         STA BLKLO
-         LDA #$00
-         STA BLKHI
+         LDY #$00
+         STY BLKHI
+         INY             ; Y=1: read block
+         STY COMMAND     ; store at $42
+         INY             ; Y=2: which block (in this example $0002)
+         STY BLKLO
          JMP INSTRUC
 
 SETVOLW: LDA #$07        ; set volume but write to EEPROM
@@ -310,7 +328,6 @@ SETVOL:
          LDA #$06        ; set volume dont write to EEPROM
 SETVOLC:
          STA COMMAND
-         JSR BUFLOC      ; dummy buffer location
          LDA VOLDRIVE0
          STA BLKLO
          LDA VOLDRIVE1
@@ -320,7 +337,6 @@ SETVOLC:
 GETVOL:
          LDA #$05        ; read block
          STA COMMAND     ; store at $42
-         JSR BUFLOC      ; store buffer location
          JSR INSTRUC
          LDA BLKBUF
          STA GVOLDRIVE0
