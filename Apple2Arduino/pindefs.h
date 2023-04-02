@@ -24,6 +24,12 @@ freely, subject to the following restrictions:
 #ifndef _PINDEFS_H
 #define _PINDEFS_H
 
+/* Select boot program:
+  2=original/stock v2 bootprogram by DL Marks,
+  3=newer bootpg with improved GUI
+*/
+#define BOOTPG 3
+
 #define CS  10 
 #define CS2 9
 #define CS3 8

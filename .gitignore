@@ -5,6 +5,7 @@ gerber*.zip
 *.lst
 *.po
 Ignore/
+bootpg/bin
 
 # Temporary files
 *.000

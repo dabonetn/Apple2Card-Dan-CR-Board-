@@ -3,9 +3,6 @@ ca65 Firmware.asm -o firmware.o --listing Firmware.lst --list-bytes 255 || exit 
 
 ld65 -t none firmware.o -o Firmware.bin || exit 1
 
-ca65 bootpg.asm -o bootpg.o --listing bootpg.lst --list-bytes 255 || exit 1
-ld65 -t none bootpg.o -o bootpg.bin || exit 1
-
 # assumes ProDOS-Utilities is in your path: https://github.com/tjboldt/ProDOS-Utilities
 rm BlankDriveWithFirmware.po || exit 1
 ProDOS-Utilities -c create -d BlankDriveWithFirmware.po -v ROM -s 65535 || exit 1
