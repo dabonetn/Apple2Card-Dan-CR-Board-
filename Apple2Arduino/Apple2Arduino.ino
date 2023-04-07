@@ -37,6 +37,14 @@
 #define USE_ETHERNET // enable Ethernet support
 #undef DEBUG_SERIAL  // disable serial debug output
 
+/* Select boot program:
+  1=no boot program
+  2=original/stock v2 bootprogram by DL Marks
+  3=bootpg with improved GUI (512byte)
+  4=bootpg with cursor key controls (1024byte)
+  5=bootpg with mouse driver (TBD)
+*/
+#define BOOTPG 4
 
 #ifdef USE_ETHERNET
 #include "w5500.h"
@@ -44,9 +52,14 @@
 
 // Include header with selected boot program
 #if BOOTPG==2
-  #include "bootpg_stock_v2.h" // stock/original bootpg v2 by DL Marks (512bytes)
-#else
-  #include "bootpg_v3.h"       // improved GUI menu v3, single boot block (512bytes)
+  #include "bootpg_stock_v2.h"   // stock/original bootpg v2 by DL Marks (512bytes)
+#elif BOOTPG==3
+  #include "bootpg_v3.h"         // improved GUI menu v3, single boot block (512bytes)
+#elif BOOTPG==4
+  #include "bootpg_cursor_v4.h"  // with cursor keys, v4, two boot blocks (1024bytes)
+#elif BOOTPG==5
+  #error Not implemented yet...
+  #include "bootpg_mouse_v5.h"  // with mouse driver, v5, multiple boot blocks (...bytes)
 #endif
 
 #define NUMBER_BOOTBLOCKS (sizeof(bootblocks)/(512*sizeof(uint8_t)))
@@ -647,6 +660,7 @@ void do_send_ethernet(void)
 }
 #endif
 
+#if BOOTPG>1
 void do_send_bootblock()
 {
   get_unit_buf_blk();
@@ -663,6 +677,7 @@ void do_send_bootblock()
   }
   DATAPORT_MODE_RECEIVE();
 }
+#endif
 
 void do_command()
 {
@@ -697,9 +712,11 @@ void do_command()
     case 0x12: do_send_ethernet();
       break;
 #endif
+#if BOOTPG>1
     case 13+128:
     case 32+128:  do_send_bootblock();
       break;
+#endif
     case 0xFF: // intentional illegal command always returning an error, just for synchronisation
     default:      write_dataport(0x27);
       break;
