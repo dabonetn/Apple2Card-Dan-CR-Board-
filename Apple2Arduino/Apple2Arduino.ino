@@ -557,14 +557,13 @@ void do_initialize_ethernet(void)
 #endif
     ethernet_initialized = 1;
     write_dataport(0);
-    return 0;
+    return;
   }
 #ifdef DEBUG_SERIAL
   SERIALPORT()->println("not initialized");
 #endif
   ethernet_initialized = 0;
   write_dataport(1);
-  return 1;
 }
 
 void do_poll_ethernet(void)
