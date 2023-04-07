@@ -34,8 +34,9 @@
 #include "ff.h"
 #include "pindefs.h"
 
-#define USE_ETHERNET
-#undef DEBUG_SERIAL
+#define USE_ETHERNET // enable Ethernet support
+#undef DEBUG_SERIAL  // disable serial debug output
+
 
 #ifdef USE_ETHERNET
 #include "w5500.h"
@@ -76,9 +77,11 @@ uint8_t last_drive = 255;
 
 uint8_t slot0_state = SLOT_STATE_NODEV;
 uint8_t slot0_fileno;
+uint8_t slot0_fileno_eeprom;
 
 uint8_t slot1_state = SLOT_STATE_NODEV;
 uint8_t slot1_fileno;
+uint8_t slot1_fileno_eeprom;
 
 static char blockvolzero[] = "0:";
 static char blockvolone[] = "1:";
@@ -107,6 +110,8 @@ void read_eeprom(void)
     slot0_fileno = 0;
     slot1_fileno = 1;
   }
+  slot0_fileno_eeprom = slot0_fileno;
+  slot1_fileno_eeprom = slot1_fileno;
 }
 
 void write_eeprom(void)
@@ -117,6 +122,8 @@ void write_eeprom(void)
     EEPROM.write(EEPROM_SLOT1, slot1_fileno);
   if (EEPROM.read(EEPROM_INIT) == 255)
     EEPROM.write(EEPROM_INIT, 0);
+  slot0_fileno_eeprom = slot0_fileno;
+  slot1_fileno_eeprom = slot1_fileno;
 }
 
 void setup_pins(void)
@@ -508,28 +515,56 @@ void write_zeros(uint16_t num)
 
 void do_set_volume(uint8_t cmd)
 {
+  // cmd=4: configure slots 0+1 in eprom, single byte response
+  // cmd=6: temporarily select slots 0+1, use 512byte response
+  // cmd=7: configure slots 0+1 in eprom, use 512byte response
+  // cmd=8: temporarily select slot 0 only, single byte response
   get_unit_buf_blk();
+
   unit = 0x80;
   unmount_drive();
+
   unit = 0x0;
   unmount_drive();
+
   slot0_fileno = blk & 0xFF;
-  slot1_fileno = (blk >> 8);
-  if (cmd != 6) write_eeprom();
+
+  if (cmd != 8)
+    slot1_fileno = (blk >> 8);
+
+  if ((cmd != 6)&&(cmd != 8)) // don't update EEPROM for temporary selections
+    write_eeprom();
+
   unit = 0x80;
   initialize_drive();
+
   unit = 0x0;
   initialize_drive();
+
   write_dataport(0x00);
-  if (cmd != 4) write_zeros(512);
+
+  if ((cmd != 4)&&(cmd != 8)) // dummy 512 byte block response for commands 6+7
+    write_zeros(512);
 }
 
-void do_get_volume(void)
+void do_get_volume(uint8_t cmd)
 {
+  // cmd=5: return eeprom volume configuration
+  // cmd=9: return current volume selection
   get_unit_buf_blk();
   write_dataport(0x00);
-  write_dataport(slot0_fileno);
-  write_dataport(slot1_fileno);
+  if (cmd == 5)
+  {
+    // return persistent configuration (this is what the config utilities want to know)
+    write_dataport(slot0_fileno_eeprom);
+    write_dataport(slot1_fileno_eeprom);
+  }
+  else
+  {
+    // return current (temporary) configuration
+    write_dataport(slot0_fileno);
+    write_dataport(slot1_fileno);
+  }
   write_zeros(510);
 }
 
@@ -648,9 +683,11 @@ void do_command()
       break;
     case 4:
     case 6:
-    case 7:    do_set_volume(cmd);
+    case 7:
+    case 8:    do_set_volume(cmd);
       break;
-    case 5:    do_get_volume();
+    case 5:
+    case 9:    do_get_volume(cmd);
       break;
 #ifdef USE_ETHERNET
     case 0x10: do_initialize_ethernet();
@@ -663,6 +700,7 @@ void do_command()
     case 13+128:
     case 32+128:  do_send_bootblock();
       break;
+    case 0xFF: // intentional illegal command always returning an error, just for synchronisation
     default:      write_dataport(0x27);
       break;
   }
