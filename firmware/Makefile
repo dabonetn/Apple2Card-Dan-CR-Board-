@@ -2,27 +2,23 @@
 # Thorsten Brehm, 2023
 
 SOURCE   = $(wildcard *.asm)
-BINARIES = $(SOURCE:.asm=.bin)
+BINARIES = $(addprefix bin/,$(SOURCE:.asm=.bin))
 
-all: $(BINARIES) BlankDriveWithFirmware.po
+all: bin $(BINARIES)
 
-%.bin: %.o
+bin:
+	mkdir bin 2> /dev/null
+
+bin/%.bin: bin/%.o
 	@echo "Linking $@..."
 	@ld65 -t none $< -o $@
 	@echo ""
 
-%.o: %.asm Makefile
+bin/%.o: %.asm Makefile
 	@echo "Assembling $<..."
-	@ca65 $< -o $@ --listing $(<:.asm=.lst) --list-bytes 255
-
-# assumes ProDOS-Utilities is in your path: https://github.com/tjboldt/ProDOS-Utilities
-BlankDriveWithFirmware.po: $(BINARIES)
-	@echo "Building disk image $@..."
-	@rm -f $@
-	@ProDOS-Utilities -c create -d BlankDriveWithFirmware.po -v ROM -s 65535
+	@ca65 $< -o $@ --listing bin/$(<:.asm=.lst) --list-bytes 255
 
 clean:
 	@echo "Wiping generated files..."
-	@rm -f $(BINARIES) $(SOURCE:.asm=.o) $(SOURCE:.asm=.lst) BlankDriveWithFirmware.po
-
+	@rm -f $(BINARIES) $(addprefix bin/,$(SOURCE:.asm=.o) $(SOURCE:.asm=.lst))
 

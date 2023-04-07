@@ -5,7 +5,7 @@ BOOTLOADER     = $(wildcard *.asm)
 BOOTLOADER_H   = $(addprefix bin/,$(BOOTLOADER:.asm=.h))
 BOOTLOADER_BIN = $(addprefix bin/,$(BOOTLOADER:.asm=.bin))
 
-all: test $(BOOTLOADER_H)
+all: check $(BOOTLOADER_H)
 
 bin/%.h: bin/%.bin tools/file2header.py
 	@echo "Generating Arduino header file $(notdir $<)..."
@@ -31,6 +31,6 @@ clean:
 	@echo "Wiping generated files..."
 	@rm bin/*
 
-test:
+check:
 	@(python3 -V > /dev/null 2> /dev/null) || (echo "ERROR: Python3 installation is required to convert binaries!"; exit 1)
 
