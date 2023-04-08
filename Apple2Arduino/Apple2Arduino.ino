@@ -36,6 +36,7 @@
 
 #define USE_ETHERNET // enable Ethernet support
 #undef DEBUG_SERIAL  // disable serial debug output
+#define USE_BLOCKDEV // BLOCKDEV support (when disabled, "0" is handled as a normal volume file instead)
 
 /* Select boot program:
   1=no boot program
@@ -75,7 +76,9 @@ SoftwareSerial softSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
 #define EEPROM_SLOT1 2
 
 #define SLOT_STATE_NODEV 0
+#ifdef USE_BLOCKDEV
 #define SLOT_STATE_BLOCKDEV 1
+#endif
 #define SLOT_STATE_WIDEDEV 2
 #define SLOT_STATE_FILEDEV 3
 
@@ -120,7 +123,7 @@ void read_eeprom(void)
     slot1_fileno = EEPROM.read(EEPROM_SLOT1);
   } else
   {
-    slot0_fileno = 0;
+    slot0_fileno = 1;
     slot1_fileno = 1;
   }
   slot0_fileno_eeprom = slot0_fileno;
@@ -255,11 +258,15 @@ void initialize_drive(void)
           if (disk_initialize(0) == 0)
             slot0_state = slot1_state = SLOT_STATE_WIDEDEV;
         }
-      } else if (slot1_fileno == 0)
+      }
+#ifdef USE_BLOCKDEV
+      else if (slot1_fileno == 0)
       {
         if (disk_initialize(1) == 0)
           slot1_state = SLOT_STATE_BLOCKDEV;
-      } else
+      }
+#endif
+      else
       {
         check_change_filesystem(255);
         set_blockdev_filename(blockdev1_filename, slot1_fileno);
@@ -278,11 +285,15 @@ void initialize_drive(void)
           if (disk_initialize(0) == 0)
             slot0_state = slot1_state = SLOT_STATE_WIDEDEV;
         }
-      } else if (slot0_fileno == 0)
+      }
+#ifdef USE_BLOCKDEV
+      else if (slot0_fileno == 0)
       {
         if (disk_initialize(0) == 0)
           slot0_state = SLOT_STATE_BLOCKDEV;
-      } else
+      }
+#endif
+      else
       {
         check_change_filesystem(255);
         set_blockdev_filename(blockdev0_filename, slot0_fileno);
@@ -302,7 +313,9 @@ void unmount_drive(void)
       case SLOT_STATE_NODEV:
         return;
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         slot1_state = SLOT_STATE_NODEV;
         return;
       case SLOT_STATE_FILEDEV:
@@ -317,7 +330,9 @@ void unmount_drive(void)
       case SLOT_STATE_NODEV:
         return;
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         slot0_state = SLOT_STATE_NODEV;
         return;
       case SLOT_STATE_FILEDEV:
@@ -368,21 +383,65 @@ uint32_t calculate_file_location(void)
   blockloc = ((uint32_t)blk) << 9;
 }
 
-void do_read(void)
+#if BOOTPG>1
+void transmit_bootblock(void)
 {
+  write_dataport(0x00);
+  if (blk >= NUMBER_BOOTBLOCKS) blk = 0;
+  blk <<= 9;
+  DATAPORT_MODE_TRANS();
+  for (uint16_t i = 0; i < 512; i++)
+  {
+    while (READ_IBFA() != 0);
+    WRITE_DATAPORT(pgm_read_byte(&bootblocks[blk + i]));
+    STB_LOW();
+    STB_HIGH();
+  }
+  DATAPORT_MODE_RECEIVE();
+}
+
+void do_send_bootblock(void)
+{
+  get_unit_buf_blk();
+  transmit_bootblock();
+}
+#endif
+
+void do_read(uint8_t failsafe)
+{
+  // failsafe==false: normal read from volume
+  // failsafe==true: read from volume, but if it's missing, read from bootpg instead
+
   UINT br;
   uint8_t buf[512];
 
   get_unit_buf_blk();
+
+#if BOOTPG>1
+  if ((failsafe)&&
+      ((( unit & 0x80    )&&(slot1_state == SLOT_STATE_NODEV))||
+       (((unit & 0x80)==0)&&(slot0_state == SLOT_STATE_NODEV))))
+  {
+    // initial ROM bootloader loading: transmit bootpg if volume is missing
+    return transmit_bootblock();
+  }
+#endif
+
   if (check_unit_nodev() == 0) return;
   if (unit & 0x80)
   {
     switch (slot1_state)
     {
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         calculate_block_location(slot1_state);
+#ifdef USE_BLOCKDEV
         if (disk_read(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1) != 0)
+#else
+        if (disk_read(                                         0, buf, blockloc, 1) != 0)
+#endif
         {
           write_dataport(0x27);
           return;
@@ -409,7 +468,9 @@ void do_read(void)
     switch (slot0_state)
     {
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         calculate_block_location(slot0_state);
         if (disk_read(0, buf, blockloc, 1) != 0)
         {
@@ -468,9 +529,15 @@ void do_write(void)
     switch (slot1_state)
     {
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         calculate_block_location(slot1_state);
+#ifdef USE_BLOCKDEV
         disk_write(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1);
+#else
+        disk_write(                                         0, buf, blockloc, 1);
+#endif
         break;
       case SLOT_STATE_FILEDEV:
         if (!check_change_filesystem(1))
@@ -487,7 +554,9 @@ void do_write(void)
     switch (slot0_state)
     {
       case SLOT_STATE_WIDEDEV:
+#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
+#endif
         calculate_block_location(slot0_state);
         disk_write(0, buf, blockloc, 1);
         break;
@@ -660,25 +729,6 @@ void do_send_ethernet(void)
 }
 #endif
 
-#if BOOTPG>1
-void do_send_bootblock()
-{
-  get_unit_buf_blk();
-  write_dataport(0x00);
-  if (blk >= NUMBER_BOOTBLOCKS) blk = 0;
-  blk <<= 9;
-  DATAPORT_MODE_TRANS();
-  for (uint16_t i = 0; i < 512; i++)
-  {
-    while (READ_IBFA() != 0);
-    WRITE_DATAPORT(pgm_read_byte(&bootblocks[blk + i]));
-    STB_LOW();
-    STB_HIGH();
-  }
-  DATAPORT_MODE_RECEIVE();
-}
-#endif
-
 void do_command()
 {
   uint8_t cmd = read_dataport();
@@ -690,7 +740,7 @@ void do_command()
   {
     case 0:    do_status();
       break;
-    case 1:    do_read();
+    case 1:    do_read(false); // normal read
       break;
     case 2:    do_write();
       break;
@@ -703,6 +753,8 @@ void do_command()
       break;
     case 5:
     case 9:    do_get_volume(cmd);
+      break;
+    case 10:   do_read(true); // failsafe read
       break;
 #ifdef USE_ETHERNET
     case 0x10: do_initialize_ethernet();

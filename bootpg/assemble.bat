@@ -1,4 +1,4 @@
-set BOOTLOADER= bootpg_stock bootpg_v1
+set BOOTLOADER= bootpg_stock_v2 bootpg_v3 bootpg_cursor_v4
 
 mkdir bin 2> NUL
 
