@@ -29,23 +29,16 @@
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
+#include "Apple2Arduino.h"
 #include "diskio_sdc.h"
 #include "mmc_avr.h"
 #include "ff.h"
 #include "pindefs.h"
+#include "config.h"
 
-#define USE_ETHERNET // enable Ethernet support
-#undef DEBUG_SERIAL  // disable serial debug output
-#define USE_BLOCKDEV // BLOCKDEV support (when disabled, "0" is handled as a normal volume file instead)
-
-/* Select boot program:
-  1=no boot program
-  2=original/stock v2 bootprogram by DL Marks
-  3=bootpg with improved GUI (512byte)
-  4=bootpg with cursor key controls (1024byte)
-  5=bootpg with mouse driver (TBD)
-*/
-#define BOOTPG 4
+/*************************************************/
+// => See DAN2config.h for configuration options!
+/*************************************************/
 
 #ifdef USE_ETHERNET
 #include "w5500.h"
@@ -71,16 +64,12 @@ SoftwareSerial softSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
 #define SERIALPORT() (&softSerial)
 #endif
 
-#define EEPROM_INIT 0
-#define EEPROM_SLOT0 1
-#define EEPROM_SLOT1 2
-
-#define SLOT_STATE_NODEV 0
-#ifdef USE_BLOCKDEV
-#define SLOT_STATE_BLOCKDEV 1
-#endif
-#define SLOT_STATE_WIDEDEV 2
-#define SLOT_STATE_FILEDEV 3
+#define EEPROM_INIT    0
+#define EEPROM_SLOT0   1
+#define EEPROM_SLOT1   2
+#define EEPROM_UNUSED  3 // available for future use
+#define EEPROM_MAC_IP  4 // bytes 4-9: MAC + IP address for FTP server
+#define EEPROM_FREE   10 // next available byte, for future extensions
 
 #ifdef USE_ETHERNET
 uint8_t ethernet_initialized = 0;
@@ -183,7 +172,7 @@ uint8_t read_dataport(void)
   return byt;
 }
 
-static uint8_t unit;
+uint8_t unit;
 static uint16_t buf;
 static uint16_t blk;
 
@@ -253,11 +242,13 @@ void initialize_drive(void)
     {
       if (slot1_fileno == 255)
       {
+#ifdef USE_WIDEDEV
         if (slot0_state == SLOT_STATE_NODEV)
         {
           if (disk_initialize(0) == 0)
             slot0_state = slot1_state = SLOT_STATE_WIDEDEV;
         }
+#endif
       }
 #ifdef USE_BLOCKDEV
       else if (slot1_fileno == 0)
@@ -280,11 +271,13 @@ void initialize_drive(void)
     {
       if (slot0_fileno == 255)
       {
+#ifdef USE_WIDEDEV
         if (slot1_state == SLOT_STATE_NODEV)
         {
           if (disk_initialize(0) == 0)
             slot0_state = slot1_state = SLOT_STATE_WIDEDEV;
         }
+#endif
       }
 #ifdef USE_BLOCKDEV
       else if (slot0_fileno == 0)
@@ -313,9 +306,7 @@ void unmount_drive(void)
       case SLOT_STATE_NODEV:
         return;
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
         slot1_state = SLOT_STATE_NODEV;
         return;
       case SLOT_STATE_FILEDEV:
@@ -330,9 +321,7 @@ void unmount_drive(void)
       case SLOT_STATE_NODEV:
         return;
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
         slot0_state = SLOT_STATE_NODEV;
         return;
       case SLOT_STATE_FILEDEV:
@@ -372,13 +361,13 @@ void do_status(void)
 
 static uint32_t blockloc;
 
-uint32_t calculate_block_location(uint8_t voltype)
+void calculate_block_location(uint8_t voltype)
 {
   uint8_t unitshift = unit & ((voltype == SLOT_STATE_WIDEDEV) ? 0xF0 : 0x70);
   blockloc = ((uint32_t)blk) | (((uint32_t)(unitshift)) << 12);
 }
 
-uint32_t calculate_file_location(void)
+void calculate_file_location(void)
 {
   blockloc = ((uint32_t)blk) << 9;
 }
@@ -432,21 +421,25 @@ void do_read(uint8_t failsafe)
   {
     switch (slot1_state)
     {
+#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+ #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
+ #endif
+ #ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
+ #endif
         calculate_block_location(slot1_state);
-#ifdef USE_BLOCKDEV
+ #ifdef USE_BLOCKDEV
         if (disk_read(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1) != 0)
-#else
+ #else
         if (disk_read(                                         0, buf, blockloc, 1) != 0)
-#endif
+ #endif
         {
           write_dataport(0x27);
           return;
         }
         break;
+#endif
       case SLOT_STATE_FILEDEV:
         if (!check_change_filesystem(1))
         {
@@ -467,10 +460,13 @@ void do_read(uint8_t failsafe)
   {
     switch (slot0_state)
     {
+#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+ #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
+ #endif
+ #ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
+ #endif
         calculate_block_location(slot0_state);
         if (disk_read(0, buf, blockloc, 1) != 0)
         {
@@ -478,6 +474,7 @@ void do_read(uint8_t failsafe)
           return;
         }
         break;
+#endif
       case SLOT_STATE_FILEDEV:
         if (!check_change_filesystem(0))
         {
@@ -528,17 +525,21 @@ void do_write(void)
   {
     switch (slot1_state)
     {
+#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+ #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
+ #endif
+ #ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
+ #endif
         calculate_block_location(slot1_state);
-#ifdef USE_BLOCKDEV
+ #ifdef USE_BLOCKDEV
         disk_write(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1);
-#else
+ #else
         disk_write(                                         0, buf, blockloc, 1);
-#endif
+ #endif
         break;
+#endif
       case SLOT_STATE_FILEDEV:
         if (!check_change_filesystem(1))
           return;
@@ -553,13 +554,17 @@ void do_write(void)
   {
     switch (slot0_state)
     {
+#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+ #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
-#ifdef USE_BLOCKDEV
+ #endif
+ #ifdef USE_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
-#endif
+ #endif
         calculate_block_location(slot0_state);
         disk_write(0, buf, blockloc, 1);
         break;
+#endif
       case SLOT_STATE_FILEDEV:
         if (!check_change_filesystem(0))
           return;
@@ -602,6 +607,7 @@ void do_set_volume(uint8_t cmd)
   // cmd=7: configure slots 0+1 in eprom, use 512byte response
   // cmd=8: temporarily select slot 0 only, single byte response
   get_unit_buf_blk();
+  write_dataport(0x00);
 
   unit = 0x80;
   unmount_drive();
@@ -622,8 +628,6 @@ void do_set_volume(uint8_t cmd)
 
   unit = 0x0;
   initialize_drive();
-
-  write_dataport(0x00);
 
   if ((cmd != 4)&&(cmd != 8)) // dummy 512 byte block response for commands 6+7
     write_zeros(512);
@@ -777,7 +781,6 @@ void do_command()
 
 int freeRam ()
 {
-  extern int __heap_start, *__brkval;
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
