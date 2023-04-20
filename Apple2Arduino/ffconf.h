@@ -84,7 +84,7 @@
 / Locale and Namespace Configurations
 /---------------------------------------------------------------------------*/
 
-#define FF_CODE_PAGE	437
+#define FF_CODE_PAGE	-1 // ignore extended characters. We only use plain ASCII anyway. Don't care for other file names...
 /* This option specifies the OEM code page to be used on the target system.
 /  Incorrect code page setting can cause a file open failure.
 /

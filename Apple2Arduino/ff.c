@@ -561,7 +561,9 @@ static WCHAR LfnBuf[FF_MAX_LFN + 1];		/* LFN working buffer */
 /* Code conversion tables         */
 /*--------------------------------*/
 
-#if FF_CODE_PAGE == 0	/* Run-time code page configuration */
+#if FF_CODE_PAGE == -1
+// disabled
+#elif FF_CODE_PAGE == 0	/* Run-time code page configuration */
 #define CODEPAGE CodePage
 static WORD CodePage;	/* Current code page */
 static const BYTE *ExCvt, *DbcTbl;	/* Pointer to current SBCS up-case table and DBCS code range table below */
@@ -2734,7 +2736,9 @@ static DWORD get_achar (	/* Get a character and advance ptr */
 #else									/* ANSI/OEM input */
 	chr = (BYTE)*(*ptr)++;				/* Get a byte */
 	if (IsLower(chr)) chr -= 0x20;		/* To upper ASCII char */
-#if FF_CODE_PAGE == 0
+#if FF_CODE_PAGE == -1
+  // ignored
+#elif FF_CODE_PAGE == 0
 	if (ExCvt && chr >= 0x80) chr = ExCvt[chr - 0x80];	/* To upper SBCS extended char */
 #elif FF_CODE_PAGE < 900
 	if (chr >= 0x80) chr = ExCvt[chr - 0x80];	/* To upper SBCS extended char */
@@ -2964,7 +2968,9 @@ static FRESULT create_name (	/* FR_OK: successful, FR_INVALID_NAME: could not cr
 			i = 8; ni = 11;				/* Enter file extension field */
 			continue;
 		}
-#if FF_CODE_PAGE == 0
+#if FF_CODE_PAGE == -1
+    // ignored
+#elif FF_CODE_PAGE == 0
 		if (ExCvt && c >= 0x80) {		/* Is SBC extended character? */
 			c = ExCvt[c & 0x7F];		/* To upper SBC extended character */
 		}
