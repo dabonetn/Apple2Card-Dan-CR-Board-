@@ -91,6 +91,7 @@ uint8_t slot1_fileno_eeprom;
 static char blockvol[] = "X:";
 static char blockdev_filename[] = "X:BLKDEVXX.PO";
 
+extern int __heap_start, *__brkval;
 
 extern "C" {
   void write_string(const char *c)
@@ -785,8 +786,30 @@ int freeRam ()
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 
+#ifdef USE_MEM_CHECK
+// memory overflow check: when the stack runs into the heap area...
+void check_memory(int id)
+{
+  int v;
+  if ((__heap_start != 0xBEEF)||  // magic word still there?
+      (&v <= &__heap_start))      // or stack already below the heap?
+  {
+#ifdef DEBUG_SERIAL
+    SERIALPORT()->print(id);
+    SERIALPORT()->println(F("MEM/STACK OVERFLOW!"));
+#endif
+    while (1);
+  }
+}
+#endif
+
 void setup()
 {
+#ifdef USE_MEM_CHECK
+  // marker for stack/memory overflow detection (we're not using heap anyway).
+  __heap_start = 0xBEEF;
+#endif
+
   setup_pins();
   setup_serial();
   read_eeprom();
@@ -816,4 +839,5 @@ void loop()
 {
   uint8_t instr = read_dataport();
   if (instr == 0xAC) do_command();
+  CHECK_MEM(0); // memory overflow check (when enabled)
 }

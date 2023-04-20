@@ -22,6 +22,7 @@
 */
 
 #include "ff.h"
+#include "config.h"
 
 #define SLOT_STATE_NODEV 0
 #define SLOT_STATE_BLOCKDEV 1
@@ -32,7 +33,16 @@ extern "C" {
   void unmount_drive(void);
   void initialize_drive(void);
   uint8_t hex_digit(uint8_t ch);
+#ifdef USE_MEM_CHECK
+  void check_memory(int id);
+#endif
 }
+
+#ifdef USE_MEM_CHECK
+  #define CHECK_MEM(id) check_memory(id)
+#else
+  #define CHECK_MEM(id) {}
+#endif
 
 extern uint8_t unit;
 extern uint8_t slot0_fileno;

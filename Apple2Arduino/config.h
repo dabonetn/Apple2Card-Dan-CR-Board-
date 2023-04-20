@@ -7,6 +7,8 @@
 #define USE_BLOCKDEV // BLOCKDEV support (when disabled, "0" is handled as a normal volume file instead)
 #define USE_WIDEDEV  // wide device support
 
+#undef USE_MEM_CHECK // enable this for memory overflow checks
+
 /* Select boot program:
   1=no boot program
   2=original/stock v2 bootprogram by DL Marks
