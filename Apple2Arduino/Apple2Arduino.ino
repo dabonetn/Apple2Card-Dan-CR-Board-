@@ -34,6 +34,7 @@
 #include "mmc_avr.h"
 #include "ff.h"
 #include "pindefs.h"
+#include "ttftp.h"
 #include "config.h"
 
 /*************************************************/
@@ -105,15 +106,25 @@ extern "C" {
 
 void read_eeprom(void)
 {
-  if (EEPROM.read(EEPROM_INIT) != 255)
+  slot0_fileno = 1;
+  slot1_fileno = 1;
+
+  uint8_t init_value = EEPROM.read(EEPROM_INIT);
+  if (init_value != 255)
   {
     slot0_fileno = EEPROM.read(EEPROM_SLOT0);
     slot1_fileno = EEPROM.read(EEPROM_SLOT1);
-  } else
-  {
-    slot0_fileno = 1;
-    slot1_fileno = 1;
+
+#ifdef USE_FTP
+    if (init_value >= 1) // newer version in EEPROM
+    {
+      // read MAC + IP address from EEPROM
+      for (uint8_t i=0;i<10;i++)
+        FtpMacIpPortData[i] = EEPROM.read(EEPROM_MAC_IP+i);
+    }
+#endif
   }
+
   slot0_fileno_eeprom = slot0_fileno;
   slot1_fileno_eeprom = slot1_fileno;
 }
@@ -129,6 +140,19 @@ void write_eeprom(void)
   slot0_fileno_eeprom = slot0_fileno;
   slot1_fileno_eeprom = slot1_fileno;
 }
+
+#ifdef USE_FTP
+void write_eeprom_ip(void)
+{
+  // write MAC and IP address to EEPROM
+  for (uint8_t i=0;i<10;i++)
+  {
+    EEPROM.write(EEPROM_MAC_IP+i, FtpMacIpPortData[i]);
+  }
+  // set EEPROM flag for newer version: we have a valid IP config
+  EEPROM.write(EEPROM_INIT, 1);
+}
+#endif
 
 void setup_pins(void)
 {
@@ -253,7 +277,7 @@ void initialize_drive(void)
         }
 #endif
       }
-#ifdef USE_BLOCKDEV
+#ifdef USE_RAW_BLOCKDEV
       else if (slot1_fileno == 0)
       {
         if (disk_initialize(1) == 0)
@@ -281,7 +305,7 @@ void initialize_drive(void)
         }
 #endif
       }
-#ifdef USE_BLOCKDEV
+#ifdef USE_RAW_BLOCKDEV
       else if (slot0_fileno == 0)
       {
         if (disk_initialize(0) == 0)
@@ -422,15 +446,15 @@ void do_read(uint8_t failsafe)
   {
     switch (slot1_state)
     {
-#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
  #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
  #endif
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
  #endif
         calculate_block_location(slot1_state);
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
         if (disk_read(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1) != 0)
  #else
         if (disk_read(                                         0, buf, blockloc, 1) != 0)
@@ -461,11 +485,11 @@ void do_read(uint8_t failsafe)
   {
     switch (slot0_state)
     {
-#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
  #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
  #endif
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
  #endif
         calculate_block_location(slot0_state);
@@ -526,15 +550,15 @@ void do_write(void)
   {
     switch (slot1_state)
     {
-#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
  #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
  #endif
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
  #endif
         calculate_block_location(slot1_state);
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
         disk_write(slot1_state == SLOT_STATE_BLOCKDEV ? 1 : 0, buf, blockloc, 1);
  #else
         disk_write(                                         0, buf, blockloc, 1);
@@ -555,11 +579,11 @@ void do_write(void)
   {
     switch (slot0_state)
     {
-#if (defined USE_WIDEDEV)||(defined USE_BLOCKDEV)
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
  #ifdef USE_WIDEDEV
       case SLOT_STATE_WIDEDEV:
  #endif
- #ifdef USE_BLOCKDEV
+ #ifdef USE_RAW_BLOCKDEV
       case SLOT_STATE_BLOCKDEV:
  #endif
         calculate_block_location(slot0_state);
@@ -734,6 +758,31 @@ void do_send_ethernet(void)
 }
 #endif
 
+
+#ifdef USE_FTP
+void do_set_ip_config(void)
+{
+  get_unit_buf_blk();
+  write_dataport(0x00);
+  for (uint16_t i=0;i<512;i++)
+  {
+    uint8_t b = read_dataport();
+    if (i<10)
+      FtpMacIpPortData[i] = b;
+  }
+  write_eeprom_ip();
+}
+
+void do_get_ip_config(void)
+{
+  get_unit_buf_blk();
+  write_dataport(0x00);
+  for (uint8_t i=0;i<10;i++)
+    write_dataport(FtpMacIpPortData[i]);
+  write_zeros(512-10);
+}
+#endif
+
 void do_command()
 {
   uint8_t cmd = read_dataport();
@@ -767,6 +816,12 @@ void do_command()
     case 0x11: do_poll_ethernet();
       break;
     case 0x12: do_send_ethernet();
+      break;
+#endif
+#ifdef USE_FTP
+    case 0x20: do_set_ip_config();
+      break;
+    case 0x21: do_get_ip_config();
       break;
 #endif
 #if BOOTPG>1
@@ -837,7 +892,21 @@ void setup()
 
 void loop()
 {
-  uint8_t instr = read_dataport();
-  if (instr == 0xAC) do_command();
-  CHECK_MEM(0); // memory overflow check (when enabled)
+#ifdef USE_FTP
+ #ifdef USE_ETHERNET
+  if (ethernet_initialized==0)  // when slave eth is initialized, we stop FTP processing: the 6502 is now controlling the Wiznet...
+ #endif
+  {
+    // this will temporarily suspend Apple II requests while an FTP connection is busy
+    loopTinyFtp();
+    CHECK_MEM(1); // memory overflow check (when enabled)
+  }
+#endif
+
+  while (READ_OBFA() == 0)
+  {
+    uint8_t instr = read_dataport();
+    if (instr == 0xAC) do_command();
+    CHECK_MEM(0); // memory overflow check (when enabled)
+  }
 }

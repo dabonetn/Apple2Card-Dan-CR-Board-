@@ -396,7 +396,7 @@ DSTATUS mmc_disk_initialize (void)
 
 
 /*-----------------------------------------------------------------------*/
-/* Get Disk Stat[slotno]us                                                       */
+/* Get Disk Status                                                       */
 /*-----------------------------------------------------------------------*/
 
 DSTATUS mmc_disk_status (void)
