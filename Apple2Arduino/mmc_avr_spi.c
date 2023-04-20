@@ -17,6 +17,9 @@
 #include "mmc_avr.h"
 #include "pindefs.h"
 
+// set fixed SPI mode
+#define MMC_SPI_MODE() SPCR = _BV(SPE) | _BV(MSTR)
+
 /* Peripheral controls (Platform dependent) */
 #define CS_LOW()		do { PORTB &= (slotno ?  ~0x02 : ~0x04); } while (0) /* Set MMC_CS = low */
 #define	CS_HIGH()		do { PORTB |= 0x07; } while (0) /* Set MMC_CS = high */
@@ -63,6 +66,7 @@ static volatile DSTATUS Stat[2] = { STA_NOINIT, STA_NOINIT };	/* Disk status */
 static BYTE CardType[2];			/* Card type flags (b0:MMC, b1:SDv1, b2:SDv2, b3:Block addressing) */
 
 BYTE slotno = 0;
+BYTE mmc_sync_write = 0;
 
 /*-----------------------------------------------------------------------*/
 /* Power Control  (Platform dependent)                                   */
@@ -250,6 +254,13 @@ int xmit_datablock (
 
 	resp = xchg_spi(0xFF);				/* Receive data resp */
 
+	/* cludge: somehow the Wiznet module freaks out when larger blocks of memory are written to an SD card.
+	* Blocking while the SD card is busy fixes the issue. So we currently do that when FTP is active.
+	* This needs more investigation...
+	*/
+	if (mmc_sync_write)
+		wait_ready(500);
+
 	return (resp & 0x1F) == 0x05 ? 1 : 0;	/* Data was accepted or not */
 
 	/* Busy check is done at next transmission */
@@ -317,6 +328,9 @@ BYTE send_cmd (		/* Returns R1 resp (bit7==1:Send failed) */
 DSTATUS mmc_disk_initialize (void)
 {
 	BYTE n, cmd, ty, isidle, ocr[4];
+
+	if ((Stat[slotno] & STA_NOINIT) == 0) return Stat[slotno];  /* Already initialized? */
+
 
 #if 0 // power_off is not implemented anyway, so we neither need the voltage drain delay
 	power_off();						/* Turn off the socket power to reset the card */
@@ -407,6 +421,8 @@ DRESULT mmc_disk_read (
 	if (!count) return RES_PARERR;
 	if (Stat[slotno] & STA_NOINIT) return RES_NOTRDY;
 
+	MMC_SPI_MODE(); // restore our preferred SPI setting
+
 	if (!(CardType[slotno] & CT_BLOCK)) sect *= 512;	/* Convert to byte address if needed */
 
 	cmd = count > 1 ? CMD18 : CMD17;			/*  READ_MULTIPLE_BLOCK : READ_SINGLE_BLOCK */
@@ -440,6 +456,8 @@ DRESULT mmc_disk_write (
 	if (!count) return RES_PARERR;
 	if (Stat[slotno] & STA_NOINIT) return RES_NOTRDY;
 	if (Stat[slotno] & STA_PROTECT) return RES_WRPRT;
+
+	MMC_SPI_MODE(); // restore our preferred SPI setting
 
 	if (!(CardType[slotno] & CT_BLOCK)) sect *= 512;	/* Convert to byte address if needed */
 
@@ -479,6 +497,8 @@ DRESULT mmc_disk_ioctl (
 	DWORD csize;
 
 	if (Stat[slotno] & STA_NOINIT) return RES_NOTRDY;
+
+	MMC_SPI_MODE(); // restore our preferred SPI setting
 
 	res = RES_ERROR;
 	switch (cmd) {
@@ -562,8 +582,10 @@ DRESULT mmc_disk_ioctl (
 		break;
 
 	case CTRL_POWER_OFF :	/* Power off */
+ #if 0
 		power_off();
 		Stat[slotno] |= STA_NOINIT;
+ #endif
 		res = RES_OK;
 		break;
 	default:
