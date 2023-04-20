@@ -88,11 +88,9 @@ uint8_t slot1_state = SLOT_STATE_NODEV;
 uint8_t slot1_fileno;
 uint8_t slot1_fileno_eeprom;
 
-static char blockvolzero[] = "0:";
-static char blockvolone[] = "1:";
+static char blockvol[] = "X:";
+static char blockdev_filename[] = "X:BLKDEVXX.PO";
 
-static char blockdev0_filename[] = "0:BLKDEVXX.PO";
-static char blockdev1_filename[] = "1:BLKDEVXX.PO";
 
 extern "C" {
   void write_string(const char *c)
@@ -140,7 +138,6 @@ void setup_pins(void)
 
 void setup_serial(void)
 {
-  Serial.end();
   DISABLE_RXTX_PINS();
 #ifdef DEBUG_SERIAL
 #ifdef SOFTWARE_SERIAL
@@ -203,8 +200,10 @@ uint8_t hex_digit(uint8_t ch)
   return ch - 10 + 'A';
 }
 
-void set_blockdev_filename(char *blockdev_filename, uint8_t fileno)
+void set_blockdev_filename(uint8_t filesystem)
 {
+  blockdev_filename[0] = hex_digit(filesystem);
+  uint8_t fileno = (filesystem==0) ? slot0_fileno : slot1_fileno;
   blockdev_filename[8] = hex_digit(fileno >> 4);
   blockdev_filename[9] = hex_digit(fileno & 0x0F);
 }
@@ -217,16 +216,19 @@ uint8_t check_change_filesystem(uint8_t current_filesystem)
   if (last_drive < 2)
   {
     f_close(&slotfile);
-    f_unmount(last_drive == 0 ? blockvolzero : blockvolone);
+    blockvol[0] = (last_drive == 0) ? '0' : '1';
+    f_unmount(blockvol);
   }
   last_drive = 255;
   if (current_filesystem < 2)
   {
-    if (f_mount(&fs, current_filesystem == 0 ? blockvolzero : blockvolone, 0) != FR_OK)
+    blockvol[0] = (current_filesystem == 0) ? '0' : '1';
+    if (f_mount(&fs, blockvol, 0) != FR_OK)
       return 0;
-    if (f_open(&slotfile, current_filesystem == 0 ? blockdev0_filename : blockdev1_filename, FA_READ | FA_WRITE) != FR_OK)
+    set_blockdev_filename(current_filesystem);
+    if (f_open(&slotfile, blockdev_filename, FA_READ | FA_WRITE) != FR_OK)
     {
-      f_unmount(current_filesystem == 0 ? blockvolzero : blockvolone);
+      f_unmount(blockvol);
       return 0;
     }
   }
@@ -260,7 +262,6 @@ void initialize_drive(void)
       else
       {
         check_change_filesystem(255);
-        set_blockdev_filename(blockdev1_filename, slot1_fileno);
         if (check_change_filesystem(1))
           slot1_state = SLOT_STATE_FILEDEV;
       }
@@ -289,7 +290,6 @@ void initialize_drive(void)
       else
       {
         check_change_filesystem(255);
-        set_blockdev_filename(blockdev0_filename, slot0_fileno);
         if (check_change_filesystem(0))
           slot0_state = SLOT_STATE_FILEDEV;
       }
