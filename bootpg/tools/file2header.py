@@ -152,7 +152,7 @@ def run(args):
 			break
 	if not Ok:
 		sys.stderr.write("\n"
-		                 "Usage: python file2header.py [--strip] (--file <filename>)*\n\n"
+		                 "Usage: python3 file2header.py [--strip] (--file <filename>)*\n\n"
 		                 "  --strip:           strips trailing whitespace, empty lines from the ASCII sources\n\n"
 		                 "  --binary:          treat file as binary\n\n"
 		                 "  --arduino <name>   generate Arduino uint8 array with given <name>\n\n"

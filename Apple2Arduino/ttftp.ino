@@ -193,9 +193,7 @@ char* strPrintInt(char* pStr, uint32_t data, uint32_t maxDigit=10000, char fillB
 void ftpSendReply(char* buf, uint16_t code)
 {
   // set three-digit reply code
-  buf[0] = '0'+(code / 100);
-  buf[1] = '0'+(code % 100)/10;
-  buf[2] = '0'+(code % 10);
+  strPrintInt(buf, code, 100, '0');
   buf[3] = ' ';
 
   // append plain message
@@ -213,8 +211,7 @@ void ftpSendReply(char* buf, uint16_t code)
   }
 
   uint8_t sz = 4;
-  if (msg)
-    sz+=strReadProgMem(&buf[sz], msg);
+  sz += strReadProgMem(&buf[sz], msg);
   FTP_CMD_REPLY(buf, sz);
 }
 
@@ -222,7 +219,7 @@ void ftpSendReply(char* buf, uint16_t code)
 bool ftpAcceptDataConnection(bool Cleanup=false)
 {
   uint16_t Timeout = (Cleanup) ? 10 : FTP_PASV_TIMEOUT;
-  for (uint16_t i=1;i<Timeout;i++)
+  for (uint16_t i=0;i<Timeout;i++)
   {
     FtpDataClient = FtpDataServer.accept();
     if (FtpDataClient.connected())
@@ -450,9 +447,9 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
 }
 
 // check the requested file name - and get the file block device number
-uint16_t getBlkDevFileNo(char* Data)
+uint8_t getBlkDevFileNo(char* Data)
 {
-  uint8_t  digit = Data[6];
+  uint8_t digit = Data[6];
   Data[6] = 0;
 
   if (!strMatch(Data, "BLKDEV"))
@@ -460,7 +457,7 @@ uint16_t getBlkDevFileNo(char* Data)
     return 255;
   }
 
-  uint16_t fno = 0;
+  uint8_t fno = 0;
   for (uint8_t i=0;i<2;i++)
   {
     fno <<= 4;
@@ -539,7 +536,7 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
         }
         else
         {
-          uint16_t fno = getBlkDevFileNo(Data);
+          uint8_t fno = getBlkDevFileNo(Data);
           if ((fno >= FTP_MAX_BLKDEV_FILES)||(fno<FTP_FIRST_BLKDEV_FILE))
             ReplyCode = 553; // file name not allowed
           else
@@ -600,6 +597,7 @@ static void ftpInit()
     return;
   }
 
+#if 0 // this is not necessary - and prevents usecases where the cable is plugged later (or the remote port is still sleeping)
   if (Ethernet.linkStatus() == LinkOFF)
   {
     FTP_DEBUG_PRINTLN(F("Eth cable not connected"));
@@ -607,6 +605,7 @@ static void ftpInit()
     Ftp.State = FTP_DISABLED;
     return;
   }
+#endif
 
   // start the servers 
   FtpCmdServer.begin();
