@@ -7,6 +7,7 @@ gerber*.zip
 Ignore/
 bootpg/bin
 utilities/bin/sram.*
+utilities/ipconfig/bin/*
 
 # Temporary files
 *.000
