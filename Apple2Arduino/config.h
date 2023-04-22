@@ -1,6 +1,6 @@
 /* DAN][ configuration */
 
-#define FW_VERSION "2.0.1"
+#define FW_VERSION "2.0.2"
 
 #define USE_ETHERNET     // enable Ethernet support
 #define USE_FTP          // enable FTP support

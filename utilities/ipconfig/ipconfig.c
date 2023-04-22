@@ -20,15 +20,23 @@
 */
 
 #include <stdio.h>
+#include <apple2.h>
+#include <conio.h>
 
 typedef unsigned char uint8_t;
 typedef unsigned int  uint16_t;
 
+char slot=0;
 uint8_t ip[4];
 // default WIZnet MAC address
 uint8_t mac[6]   = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 // ID to check presence of a DAN][ controller (actually a ProDOS interface header)
 uint8_t danID[8] = {0xE0, 0x20, 0xA0, 0x00, 0xE0, 0x03, 0xA2, 0x3C};
+
+uint8_t* INVFLG = (uint8_t*) 0x32;
+
+void norm() {*INVFLG = 0xff;}
+void inverse() {*INVFLG = 0x3f;}
 
 void memcpy(uint8_t* dest, const uint8_t* src, int bytes)
 {
@@ -91,24 +99,35 @@ int doDanConfig(uint8_t slot, uint8_t setConfig)
    return p[0x20];
 }
 
+void showIpMac()
+{
+	printf(" SLOT: %hu\n", slot);
+	if (ip[0] == 0)
+		printf(" FTP/IP DISABLED.\n");
+	else
+	{
+		printf(" IP  : %hu.%hu.%hu.%hu\n", ip[0], ip[1], ip[2], ip[3]);
+		printf(" MAC : %02hX:%02hX:%02hX:%02hX:%02hX:%02hX\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	}
+}
+
 void main(void)
 {
    char c=0;
-   char slot=0;
    int e,v;
    char str[32];
 
    // wipe screen
-   for (e=0;e<24*2;e++)
-   	printf("\n");
+   clrscr();
 
-   printf("\n");
-   printf("          DANII CONTROLLER\n");
-   printf("        FTP/IP CONFIGURATION\n\n");
+   inverse();
+   printf("            DANII CONTROLLER           \n");
+   printf("          FTP/IP CONFIGURATION         \n\n");
+   norm();
 
    do
    {
-        printf("\nController slot: #");
+        printf("\nCONTROLLER SLOT: #");
    	slot = getc(stdin);
    	printf("\n");
    	if ((slot>='1')&&(slot<='7'))
@@ -116,78 +135,91 @@ void main(void)
 	   slot -= '0';
 	   if (checkDanSlot(slot) == 0)
 	   {
-	     printf("Sorry, no DANII controller in #%hu.\n", slot);
+	     printf("SORRY, NO DANII CONTROLLER IN #%hu.\n", slot);
 	     slot = 0;
 	   }
 	}
 	else
 	{
-	  printf("Invalid slot number! Use 1-7.\n\x07");
+	  printf("INVALID SLOT NUMBER! USE 1-7.\n\x07");
 	  slot = 0;
 	}
    } while (slot == 0);
 
    if (doDanConfig(slot, 0) != 0)
    {
-   	printf("\nERROR: controller missing FTP support.\nDid you update the Arduino firmware?\n\x07");
+	printf("\nERROR: CONTROLLER MISSING FTP SUPPORT.\nDID YOU UPDATE THE ARDUINO FIRMWARE?\n\x07");
    }
    else
    {
-	printf("\nCurrent configuration:\n");
-	printf(" SLOT: %hu\n", slot);
-        printf(" IP  : %hu.%hu.%hu.%hu\n", ip[0], ip[1], ip[2], ip[3]);
-        printf(" MAC : %02hX:%02hX:%02hX:%02hX:%02hX:%02hX\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	printf("\nCURRENT CONFIGURATION:\n");
+	showIpMac();
 
-
-	printf("\nNew configuration:\n");
+	printf("\nNEW CONFIGURATION:\n");
 	do
 	{
 		printf(" IP  : ");
 		gets(str);
 		ip[0]=ip[1]=ip[2]=ip[3]=0;
 		e = sscanf(str, "%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
+		if ((e==1)&&(ip[0]==0))
+		{
+			ip[0]=ip[1]=ip[2]=ip[3]=0;
+			e=4;
+		}
+		else
 		if ((e!=4)||(ip[0]==0)||(ip[1]==0))
 		{
-		      printf("\n Not a valid IP address!\n\x07");
+		      printf(" NOT A VALID IP ADDRESS!\n ENTER '0' TO DISABLE IP/FTP SUPPORT.\n\x07");
 		      e=0;
 		}
 	} while (e!=4);
 
-	printf("  Random byte for unique MAC (00-FF):\n");
-	do
+	if (ip[0] != 0)
 	{
-	        printf(" MAC : %02hX:%02hX:%02hX:%02hX:%02hX:", mac[0], mac[1], mac[2], mac[3], mac[4]);
-		gets(str);
-		e = sscanf(str, "%hx", &v);
-		if ((e!=1)||(v<0)||(v>255))
+		printf(" RANDOM BYTE FOR UNIQUE MAC (00-FF):\n");
+		do
 		{
-			printf("\n Pick a random number 00-ff!\n\x07");
-			e=0;
-		}
-	} while (e!=1);
-	mac[5] = v;
+			printf(" MAC : %02hX:%02hX:%02hX:%02hX:%02hX:", mac[0], mac[1], mac[2], mac[3], mac[4]);
+			gets(str);
+			e = sscanf(str, "%hx", &v);
+			if ((e!=1)||(v<0)||(v>255))
+			{
+				printf("\n PICK A RANDOM NUMBER 00-FF!\n\x07");
+				e=0;
+			}
+		} while (e!=1);
+		mac[5] = v;
+	}
 
-	printf("\nConfiguring DANII-WIZnet:\n");
-	printf(" SLOT: %hu\n", slot);
-	printf(" IP  : %hu.%hu.%hu.%hu\n", ip[0], ip[1], ip[2], ip[3]);
-	printf(" MAC : %02hX:%02hX:%02hX:%02hX:%02hX:%02hX\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	printf("\nCONFIGURING DANII-WIZNET:\n");
+	showIpMac();
 
-	printf("\n          <RETURN> to confirm.");
+	printf("\n          <RETURN> TO CONFIRM.");
 	gets(str);
 	printf("\n");
 
 	// set the new configuration	
 	if (doDanConfig(slot, 1) == 0)
 	{
-		printf("\n           Configuration OK!");
-		printf("\n   (CTRL-RESET to activate new IP!)\x07\n");
+		printf("\n           ");
+		inverse();
+		printf("CONFIGURATION OK!");
+		norm();
+		printf("\n   (CTRL-RESET TO ACTIVATE NEW IP!)\n\n\n");
+		inverse();
+		printf("           APPLE II FOREVER!         \x07");
+		norm();
 	}
 	else
 	{
-		printf("\nERROR: controller missing FTP support.\n"
-		       "Did you update the Arduino firmware?\x07");
+		printf("\n");
+		inverse();
+		printf("ERROR: CONTROLLER MISSING FTP SUPPORT.\n");
+		printf("DID YOU UPDATE THE ARDUINO FIRMWARE?\x07");
+		norm();
 	}
    }
-   gets(str);
+   getc(stdin);
 }
 

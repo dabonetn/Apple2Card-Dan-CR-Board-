@@ -577,6 +577,13 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
 
 static void ftpInit()
 {
+  // IP address "0" disables the FTP server and Eth initialization completely
+  if (FtpMacIpPortData[OFFSET_IP]==0)
+  {
+    Ftp.State = FTP_DISABLED;
+    return;
+  }
+
   Ethernet.init(CS3);
 
 #ifdef FTP_DEBUG
