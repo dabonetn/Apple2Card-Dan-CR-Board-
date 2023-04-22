@@ -379,6 +379,7 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
     {
       if (TcpBytes == 0)
       {
+        mmc_wait_busy_spi(); // check recent f_write is completed/SPI released
         TcpBytes = FtpDataClient.available();
         if (TcpBytes == 0)
         {
@@ -391,40 +392,38 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
           }
         }
       }
-      if (TcpBytes > 0)
+      while (TcpBytes)
       {
-        while (TcpBytes)
+        mmc_wait_busy_spi(); // check recent f_write is completed/SPI released
+        size_t sz = (BufOffset+TcpBytes > FTP_BUF_SIZE) ? FTP_BUF_SIZE-BufOffset : TcpBytes;
+        int rd = FtpDataClient.read((uint8_t*) &buf[BufOffset], sz);
+        CHECK_MEM(1040);
+        if (rd>0)
         {
-          size_t sz = (BufOffset+TcpBytes > FTP_BUF_SIZE) ? FTP_BUF_SIZE-BufOffset : TcpBytes;
-          int rd = FtpDataClient.read((uint8_t*) &buf[BufOffset], sz);
-          CHECK_MEM(1040);
-          if (rd>0)
+          // reset timeout when data was received
+          Timeout = 0;
+          if (f_eof(&slotfile))
           {
-            // reset timeout when data was received
-            Timeout = 0;
-            if (f_eof(&slotfile))
+            // we will not write beyond the allocated file size
+            return 552;
+          }
+          BufOffset += rd;
+          TcpBytes-=rd;
+          if (BufOffset >= FTP_BUF_SIZE)
+          {
+            // write block to disk
+            int r = f_write(&slotfile, buf, FTP_BUF_SIZE, &bw);
+            if (r != FR_OK)
             {
-              // we will not write beyond the allocated file size
+              FTP_DEBUG_PRINTLN(F("badwr"));
               return 552;
             }
-            BufOffset += rd;
-            TcpBytes-=rd;
-            if (BufOffset >= FTP_BUF_SIZE)
+            if (bw != FTP_BUF_SIZE)
             {
-              // write block to disk
-              int r = f_write(&slotfile, buf, FTP_BUF_SIZE, &bw);
-              if (r != FR_OK)
-              {
-                FTP_DEBUG_PRINTLN(F("badwr"));
-                return 552;
-              }
-              if (bw != FTP_BUF_SIZE)
-              {
-                FTP_DEBUG_PRINTLN(F("badwrsz"));
-                return 552;
-              }
-              BufOffset=0;
+              FTP_DEBUG_PRINTLN(F("badwrsz"));
+              return 552;
             }
+            BufOffset=0;
           }
         }
       }
@@ -540,7 +539,10 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
           if ((fno >= FTP_MAX_BLKDEV_FILES)||(fno<FTP_FIRST_BLKDEV_FILE))
             ReplyCode = 553; // file name not allowed
           else
+          {
             ReplyCode = ftpHandleFileData(buf, fno, (CmdId == FTP_CMD_RETR));
+            mmc_wait_busy_spi(); // check f_write is completed/SPI released
+          }
         }
         delay(10);
         FtpDataClient.stop();
@@ -637,6 +639,9 @@ void loopTinyFtp(void)
     return;
   }
 
+  // before talking to WIZnet, make sure the SPI bus is not blocked by a pending write
+  mmc_wait_busy_spi();
+
   if (Ftp.State == FTP_NOT_INITIALIZED)
   {
     ftpInit();
@@ -661,7 +666,6 @@ void loopTinyFtp(void)
         Ftp.CmdBytes = 0;
         // always start in root directory
         Ftp.Directory = DIR_ROOT;
-        mmc_sync_write = 1;
       }
     }
     else
@@ -676,7 +680,6 @@ void loopTinyFtp(void)
         Ftp.State = FTP_INITIALIZED;
         // select original Apple II volumes (just as if nothing happened...)
         switchFile(0x0, Ftp._file0, Ftp._file1);
-        mmc_sync_write = 0;
       }
       else
       if (FtpCmdClient.available())

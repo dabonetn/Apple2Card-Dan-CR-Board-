@@ -66,7 +66,7 @@ static volatile DSTATUS Stat[2] = { STA_NOINIT, STA_NOINIT };	/* Disk status */
 static BYTE CardType[2];			/* Card type flags (b0:MMC, b1:SDv1, b2:SDv2, b3:Block addressing) */
 
 BYTE slotno = 0;
-BYTE mmc_sync_write = 0;
+BYTE mmc_busy = 0; /* flag indicating when a MMC card is still busy with a write/program operation */
 
 /*-----------------------------------------------------------------------*/
 /* Power Control  (Platform dependent)                                   */
@@ -167,6 +167,8 @@ int wait_ready (	/* 1:Ready, 0:Timeout */
 		d = xchg_spi(0xFF);
 	} while (d != 0xFF && (((int16_t)(((uint16_t)millis())-intime)) < wt));
 
+	mmc_busy = (d != 0xff); /* remember when MMC is busy */
+
 	return (d == 0xFF) ? 1 : 0;
 }
 
@@ -201,7 +203,29 @@ int select (void)	/* 1:Successful, 0:Timeout */
 	return 0;
 }
 
+/*-----------------------------------------------------------------------*/
+/* Wait while a MMC card is still busy (and blocking the SPI bus)        */
+/*-----------------------------------------------------------------------*/
 
+void mmc_wait_busy_spi(void)
+{
+	/* see MMC SD Specification: a card keeps forcing DO low while it is busy
+	 * programming. And it will only release DO when it is done AND gets an
+	 * additional clock.
+	 * This MMC driver has a busy check prior to any new command (wait_ready),
+	 * so this is properly considered. But other SPI drivers (WIZnet/Ethernet)
+	 * don't know about this.
+	 * This method can be used to verify that the MMC has released the SPI bus
+	 * prior to accessing other SPI device (using other SPI drivers, like WIZnet).
+	 * We only do the busy check if we know that a write/program operation was
+	 * pending (hence the MMC was known to be busy).
+	 */
+	if (mmc_busy)
+	{
+		if (select())  // select card, provide clocks, wait for ready, release card
+			deselect();
+	}
+}
 
 /*-----------------------------------------------------------------------*/
 /* Receive a data packet from MMC                                        */
@@ -243,7 +267,6 @@ int xmit_datablock (
 {
 	BYTE resp;
 
-
 	if (!wait_ready(500)) return 0;		/* Leading busy check: Wait for card ready to accept data block */
 
 	xchg_spi(token);					/* Xmit data token */
@@ -254,12 +277,7 @@ int xmit_datablock (
 
 	resp = xchg_spi(0xFF);				/* Receive data resp */
 
-	/* cludge: somehow the Wiznet module freaks out when larger blocks of memory are written to an SD card.
-	* Blocking while the SD card is busy fixes the issue. So we currently do that when FTP is active.
-	* This needs more investigation...
-	*/
-	if (mmc_sync_write)
-		wait_ready(500);
+	mmc_busy = (xchg_spi(0xff) != 0xff);	/* after each write: remember MMC busy state */
 
 	return (resp & 0x1F) == 0x05 ? 1 : 0;	/* Data was accepted or not */
 

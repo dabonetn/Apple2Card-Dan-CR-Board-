@@ -694,6 +694,7 @@ void do_initialize_ethernet(void)
     SERIALPORT()->print(" ");
 #endif
   }
+  mmc_wait_busy_spi(); // make no MMC card is blocking the SPI bus before accessing WIZnet SPI
   if (ethernet_initialized)
     eth.end();
   if (eth.begin(mac_address))
@@ -726,6 +727,7 @@ void do_poll_ethernet(void)
     SERIALPORT()->print("read len ");
     SERIALPORT()->println(len, HEX);
 #endif
+    mmc_wait_busy_spi(); // make no MMC card is blocking the SPI bus before accessing WIZnet SPI
     len = eth.readFrame(NULL, len);
 #ifdef DEBUG_SERIAL
     SERIALPORT()->print("recv len ");
@@ -752,6 +754,7 @@ void do_send_ethernet(void)
     SERIALPORT()->print("len ");
     SERIALPORT()->println(len, HEX);
 #endif
+    mmc_wait_busy_spi(); // make no MMC card is blocking the SPI bus before accessing WIZnet SPI
     eth.sendFrame(NULL, len);
   }
   write_dataport(0);
