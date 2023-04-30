@@ -35,7 +35,7 @@ uint8_t danID[8] = {0xE0, 0x20, 0xA0, 0x00, 0xE0, 0x03, 0xA2, 0x3C};
 
 uint8_t* INVFLG = (uint8_t*) 0x32;
 
-void norm() {*INVFLG = 0xff;}
+void norm()    {*INVFLG = 0xff;}
 void inverse() {*INVFLG = 0x3f;}
 
 void memcpy(uint8_t* dest, const uint8_t* src, int bytes)
