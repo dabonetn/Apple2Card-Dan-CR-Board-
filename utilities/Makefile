@@ -9,6 +9,12 @@ DISKIMAGE = bin/BlankDriveWithFirmware.po
 APPLECOMMANDER = java -jar ../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
 
 all: bin $(BINARIES) $(DISKIMAGE)
+	@echo ""
+	@echo "FTP/IP configuration utility..."
+	@make -C ipconfig
+	@echo ""
+	@echo "FW update utility..."
+	@make -C fwupdate
 
 bin:
 	mkdir bin 2> /dev/null
@@ -42,4 +48,6 @@ bin/sram.system: bin/sram.bin $(FIRMWARE)
 clean:
 	@echo "Wiping generated files..."
 	@rm -f $(BINARIES) $(addprefix bin/,$(SOURCE:.asm=.o) $(SOURCE:.asm=.lst)) $(DISKIMAGE)
+	@make -C ipconfig $@
+	@make -C fwupdate $@
 

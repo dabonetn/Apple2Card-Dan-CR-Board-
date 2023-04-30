@@ -8,6 +8,7 @@ Ignore/
 bootpg/bin
 utilities/bin/sram.*
 utilities/ipconfig/bin/*
+utilities/fwupdate/bin/*
 
 # Temporary files
 *.000
