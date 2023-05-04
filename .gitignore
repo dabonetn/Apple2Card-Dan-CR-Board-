@@ -6,9 +6,13 @@ gerber*.zip
 *.po
 Ignore/
 bootpg/bin
-utilities/bin/sram.*
+eprom/bin
+utilities/eeprom/bin/*
 utilities/ipconfig/bin/*
 utilities/fwupdate/bin/*
+
+# Eclipse project
+.project
 
 # Temporary files
 *.000

@@ -28,6 +28,8 @@ DISK_IMAGE_NAME := bin/DANII_FWUPDATE
 DAN2_FTP_IP := 192.168.4.65
 DAN2_VOL_IMAGE := /sd1/BLKDEV0C.PO
 
+all: $(DISK_IMAGE_NAME).po
+
 # build ProDOS disk image
 $(DISK_IMAGE_NAME).po: bin/FWUPDATE.PRG Makefile
 	@echo "Building volume $@"
@@ -35,6 +37,7 @@ $(DISK_IMAGE_NAME).po: bin/FWUPDATE.PRG Makefile
 	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
 	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANII.FW.UPDATE
 	@cat bin/FWUPDATE.PRG | $(AC) -p $(DISK_IMAGE_NAME).dsk DAN.FWUP.SYSTEM sys
+	@cat bin/EEPROM.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk EEPROM.SYSTEM sys
 	@echo "Converting to ProDOS..."
 	@python3 ../ipconfig/dsk2po.py $(DISK_IMAGE_NAME).dsk
 	@cp $(DISK_IMAGE_NAME).dsk ../../dsk/.
