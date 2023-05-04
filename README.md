@@ -126,30 +126,33 @@ LED D11 (just above the J6 header) indicates network activity of the WIZnet adap
 
 The [CAD](/CAD) folder contains a design for 3D printed bracket, which can be used to mount the WIZnet Ethernet adapter into the back of the Apple II.
 
-## FTP Access ##
+## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files. The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV01.PO-BLKDEV0F.PO. Other files and other directories are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
 
 The Apple II access is suspended as soon as any FTP session is active. Disconnect your FTP client to resume Apple II access to the volumes.
 
 Notice that any RESET of the Apple II also resets the DAN][Controller and the network device. So avoid pressing Ctrl-RESET on the Apple II while up- or downloading volume images via FTP.
 
-## IP Configuration ##
+## IP Configuration
 The IP address for FTP is currently configured using a separate tool. See the [dsk](/dsk) folder for disk images with the IP configuration tool. The ".PO" image can also be stored as a volume on the DAN][ Controller.
 
 *This tool (disk) will eventually be replaced by an option integrated into the normal boot menu (come back to check for updates soon :) ).*
 
-### Advanced FTP clients ###
+### Advanced FTP clients
 The FTP server is limited to a single connection. If you use advanced FTP clients, like FileZilla, then you need to configure the FTP connection: see the "connection properties" and enable "Limit number of simulataneous connections" and set the limit to "1":
 
 ![FileZilla Configuration](pics/FileZillaConfig.png)
 
-### Advanced FTP features ###
+### Advanced FTP features
 Notice that ProDOS volume names and volume sizes are displayed via FTP. The owner/group information is (ab)used to report the ProDOS volume name - while the normal FTP file names are the normal DOS file names.
 
 ![FTP Volume Display](pics/FTPVolumeDisplay.png)
 
-## Apple II Ethernet Access ##
+## Apple II Ethernet Access
 Alternatively to the FTP support, it is also possible for the Apple II to directly access the WIZnet Ethernet port. There is an extension for the IP65 network stack which adds support for the DAN][Controller interface to the WIZnet adapter.
 See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
 
 Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II directly accesses the Ethernet port (using IP65).
+
+# Errata
+You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
