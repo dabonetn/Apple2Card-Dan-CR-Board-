@@ -11,6 +11,9 @@ utilities/eeprom/bin/*
 utilities/ipconfig/bin/*
 utilities/fwupdate/bin/*
 
+# Exclude the "no bootloader" hex file:
+Apple2Arduino/Apple2Arduino.ino.standard.hex
+
 # Eclipse project
 .project
 

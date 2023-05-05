@@ -3,10 +3,10 @@
 # Introduction
 The DAN][Controller is a simple and easy to build card that provides two SD cards as mass storage devices to ProDOS.
 
-Optionally it can be extended with a network interface using a Wiznet W5500 adpater.
-The network interface provides an optional FTP server to remotely manage the Apple II volumes on the two SD cards. The network interface can also be used by the Apple II itself (using the IP65 network stack).
+Optionally it can be extended with a network interface using a Wiznet W5500 adapter.
+The network interface provides an optional FTP server to remotely manage the Apple II volumes on the two SD cards. The network interface can also be used by the Apple II itself (using an updated [IP65](https://github.com/profdc9/ip65) network stack).
 
-The card is based on the ATMEGA328P which is programmed with the Arduino development environment. It uses an using a 82C55 peripheral interface to connect to the Apple II bus.
+The card is based on the ATMEGA328P which is programmed with the Arduino development environment. It uses an 82C55 peripheral interface to connect to the Apple II bus.
 The design uses only five commonly available integrated circuits, the 74HCT08 AND gate, 74HCT32 OR gate, 82C55A peripheral interface, an eprom/eeprom memory chip, and a ATMEGA328P microcontroller, so should be reasonably future-proofed as much as any design for a 40 year old computer can be.
 
 ![Apple2Card](pics/DAN2Controller.jpg)
@@ -17,31 +17,52 @@ The gerbers for the PCB are in the [Apple2Card/Gerber](/Apple2Card/Gerber) direc
 ![Apple2Card](Apple2Card/Apple2Card.png)
 
 ## Connectors
-* The **J1** connector is the ICSP connector for programming the ATMEGA32P.
+* The **J1** connector is the ICSP connector for programming the ATMEGA328P.
 * The **J2** and **J3** connector break out the bus pins of the Apple II.
 * The **J4** connect are the extra pins of the 82C55 broken out onto a connector.
 * The **J5** connector is for debugging.
 * The **J6** connector is for a Wiznet 5500 SPI ethernet controller (similar to Uthernet).
 
+## Jumpers
+* **JP1** is the ICSP power jumper. This needs to be closed for ICSP programming on the bench, to power the board when it is **not** plugged in an Apple II slot. Remove this jumper for ICSP programming when the board powered through an Apple II slot. This jumper doesn't matter for normal use.
+* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM and logic ICs. **JP5 must be closed for normal use.** It is only opened for certain tests on the bench - or when you attempt ICSP programming of the card while it is plugged in an Apple II, while the Apple II is switched off.
+* **JP2** is the bank switch jumper. It **always needs to be closed**. It can be hardwired/soldered closed.
+* **JP3**, **JP4**, **JP6**, **JP7**, **JP8**, **JP9**, **JP10** are the programming jumpers. If an EEPROM is used then these need to be closed during onboard programming (see EEPROM.SYSTEM below). However, **these jumpers must remain open for normal use**.
+
+## Optional Components
+You may not need to solder the following components:
+
+* Push button **SW1** is only really useful for developers. You do not need to add it otherwise.
+* Resistors **R27** and **R28** should only be soldered if you intend to connect an SD card extension cable to the **J6** header. Do **not** solder these otherwise, or if you want to connect a WIZnet Ethernet adapter.
+* Jumper **JP1** only matters to allow the card to be powered through an external ICSP programmer. It can be hardwired/soldered closed (unless you intend to connect an ICSP programmer while the card is installed in an Apple II slot).
+* Jumper **JP2** always needs to be closed. It can be hardwired/soldered closed.
+* Jumper **JP5** always needs to be closed for normal operation. You would only open it if you intend to connect an ICSP programmer when the card is installed inside the Apple II. Otherwise it can be hardwired/soldered closed.
+* Jumper **JP6** only makes sense when you use an EEPROM (28Cxx) memory. Otherwise, if you use an EPROM (27Cxx) you can omit this jumper. It should be open for normal use.
+* You can omit the pin headers for the **J4** extender - and for **J5**, if you do not intend to use the card for development/debugging.
+* Add a pin header to **J1** to allow the use of an external ICSP programmer to the card.
+* Add a pin header to **J6** to allow the extension of a WIZnet SPI network interface.
+
 # Programming the Devices
 
 ## EPROM/EEPROM
 For the memory device of the card an EPROM or EEPROM of 4K/8K/16K/32K can be used: a 27C32/27C64/27C128/27C256 EPROM or a 28C32/28C64/28C128/28C256 EEPROM.
-Only the first 512 bytes of that memory are used. Most of the code (including the boot/configuration program for the card) is stored in the Arduino flash memory - not in the EPROM - so the contents of this memory device are not expected to change often (while the ATMEGA chip's internfal flash will be subject to more frequent updates).
+Only the first 512 bytes of that memory are used. Most of the code (including the boot/configuration program for the card) is stored in the Arduino flash memory - not in the EPROM - so the contents of this memory device are not expected to change often (while the ATMEGA chip's internal flash will be subject to more frequent updates).
 
-The (E)EPROM needs to be programmed with this [eprom.bin](/eprom/bin/eprom.bin) file. It is a 512 byte file that can be burnt to the memory chip using a programmer (such as a TL866 plus II).
+### EPROM Programmer
+The EPROM needs to be programmed with this [eprom.bin](/eprom/bin/eprom.bin) file. It is a 512 byte file that can be burned to the memory chip using a programmer (such as a MiniPro / TL866 plus II).
 Again, only the first 512 bytes are used.
 
-If an EEPROM is used, there is also a program called [EEPROM.SYSTEM](utilities/eeprom/bin/EEPROM.SYSTEM) which can program the EEPROM on the board.
+### Onboard Programming
+If a reprogrammable EEPROM (not EPROM) is used, there is also a program called [EEPROM.SYSTEM](utilities/eeprom/bin/EEPROM.SYSTEM) which can program the EEPROM on the board.
 Jumpers JP2, JP3, JP4, JP6, JP7, JP8, JP9, and JP10 need to be closed when programming the EEPROM with the EEPROM.SYSTEM program.
 
-**However, for normal use, jumpers JP3-JP10 must be open - while only JP2 must be closed** (you can hardwire/solder JP2 to be closed).
+**However, for normal use, jumpers JP3-JP10 must be open - while only JP2 must be closed** (JP2 can be hardwired/soldered closed).
 
 ## ATMEGA328P
-The code for the ATMEGA328P is the Apple2Arduino sketch in the [Apple2Arduino](Apple2Arduino/) directory.
-It can be uploaded using a programmer, however, preferably this [custom bootloader](Apple2Arduino/ArduinoBootloader_optiboot_atmega328p_DANII_16000000L.hex) should be installed to the ATMEGA.
+The code for the ATMEGA328P is the Apple2Arduino sketch in the [Apple2Arduino](Apple2Arduino/) directory. It can be built and uploaded using the Arduino environment.
+However, preferably this [custom bootloader](Apple2Arduino/ArduinoBootloader_optiboot_atmega328p_DANII_16000000L.hex) should be installed to the ATMEGA - which is also included in the full [Apple2Arduino.ino.with_bootloader.standard.hex](/Apple2Arduino/Apple2Arduino.ino.with_bootloader.standard.hex) hex file.
 Once the custom bootloader is installed, the Apple II is able to update the firmware of the ATMEGA (no more cables or ICSP programmers required).
-The fw update utility can even be used to program the initial firmware (or to recover a "brain dead" ATMEGA - when the custom bootloader was installed).
+The firmware update utility can even be used to program the initial firmware (or to recover a "brain dead" ATMEGA - when the custom bootloader was installed).
 See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
 
 The recommended fuse settings for the ATMEGA328P are identical to the default settings of an Arduino Uno board:
@@ -50,20 +71,26 @@ The recommended fuse settings for the ATMEGA328P are identical to the default se
 * **hfuse: 0xDE**
 * **efuse: 0xFD**
 
-(The hfuse setting activates the use of the bootloader).
+The hfuse setting activates the use of the bootloader.
 
-You can program the ATMEGA328P using a programmer (such as a TL866 plus II).
-You can also use an ICSP programmer (such as an Ardunio Uno board, programmed with the "Arduino as ISP" sketch), connect the ICSP cable to the **J1** connector of the DAN][Card and directly program the the ATMEGA328P on the board.
+### MiniPRO / TL866 programmer
+You can program the ATMEGA328P using a programmer (such as a TL866 plus II). The project contains the matching ".hex" and "fuses.cfg" file for programming:
+
+* `cd Apple2Arduino`
+* `minipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.with_bootloader.standard.hex -f ihex -e`
+* `minipro -p 'ATMEGA328P@DIP28' -c config -w fuses.cfg`
+
+### ICSP Programmer
+You can also use an ICSP programmer, connect the ICSP cable to the **J1** connector of the DAN][Card and directly program the the ATMEGA328P on the board.
+Any 5V Ardunio board can be ued as an ICSP programmer: simply upload the "ArduinoISP" sketch from the Arduino IDE example section and make the appropriate wire connections to the **J1** ICSP header on the DAN][ card.
 
 **If you use the ICSP connector of the DAN][Card then no SD cards should be present in the SD slots when the ATMEGA328P is flashed.**
 
 A command-line for programming the fuses and bootloader with "avrdude" is:
 
-`avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:ArduinoBootloader_optiboot_atmega328p_DANII_16000000L.hex`
+* `avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:Apple2Arduino.ino.with_bootloader.standard.hex`
 
 You may need to adapt "avrisp" and the "/dev/ttyUSB0" port to match your programmer device. The "avrisp" matches the ArduinoISP (e.g. an Arduino Uno board programmed to be an ISP).
-
-Alternatively, the Arduino sketch can be uploaded directly with the Arduino environment.
 
 # SD Cards
 Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
@@ -79,10 +106,10 @@ Alternatively, raw block mode may be used (instead of FAT formatted SD cards). O
 
 To prepare SD cards for raw block mode, use the [BlankVols.zip](/volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes. Place this in SLOT1 of the card.
 
-## Wide Block Mode ###
+## Wide Block Mode
 TBD: Ordinarily, only a maximum of 64 MB is addressable, 32 MB for ProDOS drive 1, and a second 32 MB for ProDOS drive 2.  The program ALLVOLS.SYSTEM allows this limit to be circumvented in ProDOS 8.  For a SD card placed in slot 1, write the image in "BlankVols" or "BlankVolsSlot1"to it, and for a SD card in slot 2, write the image file "BlankVolsSlot2" to it.  When ALLVOLS.SYSTEM is executed, extra volumes may be added from slot 1 or slot 2 depending on if a SD card with block images is present in slot 1 or slot 2.  It is recommended that slot 1 be used for block images and slot 2 be used for FAT FS images.  This way, cards can be swapped in and out of slot 2 with different files transferred from another computer (perhaps using CiderPress) while the boot filesystem in slot 1 stays the same.
 
-## Preparing ProDOS volumes
+## Preparing ProDOS Volumes
 ProDOS disk images can be read/written by software such as CiderPress ([a2ciderpress.com](https://a2ciderpress.com/)) so that you can use this to transfer files to and from the Apple II.
 Files can be copied onto the ProDOS disk image partition which can then be read/written by CiderPress and transferred to other media.
 
@@ -101,11 +128,13 @@ When the card is the primary boot device then the message "DAN II: PRESS RETURN"
 * If **no key** is pressed, then normal booting continues after about a second. This will boot the volume which was *most recently* selected through the boot menu.
 * If **SPACE** is pressed, then normal booting continues immediately (most recent boot menu selection).
 
-## Boot menu
+![Boot Message](pics/DAN2boot.jpg)
+
+## Boot Menu
 If the RETURN key is pressed during boot up, the boot menu is loaded.
 The boot menu allows the selection of the volumes.
 
-![Boot menu](pics/bootmenu.jpg)
+![Boot Menu](pics/bootmenu.jpg)
 
 Use the **ARROW KEYS** (or **SPACE**/**TAB**/**BACKSPACE**) to select the active volume for each SD card. Press **ESCAPE** to abort and **RETURN** to confirm.
 
@@ -138,12 +167,12 @@ The IP address for FTP is currently configured using a separate tool. See the [d
 
 *This tool (disk) will eventually be replaced by an option integrated into the normal boot menu (come back to check for updates soon :) ).*
 
-### Advanced FTP clients
+### Advanced FTP Clients
 The FTP server is limited to a single connection. If you use advanced FTP clients, like FileZilla, then you need to configure the FTP connection: see the "connection properties" and enable "Limit number of simulataneous connections" and set the limit to "1":
 
 ![FileZilla Configuration](pics/FileZillaConfig.png)
 
-### Advanced FTP features
+### FTP ProDOS Features
 Notice that ProDOS volume names and volume sizes are displayed via FTP. The owner/group information is (ab)used to report the ProDOS volume name - while the normal FTP file names are the normal DOS file names.
 
 ![FTP Volume Display](pics/FTPVolumeDisplay.png)
@@ -152,7 +181,7 @@ Notice that ProDOS volume names and volume sizes are displayed via FTP. The owne
 Alternatively to the FTP support, it is also possible for the Apple II to directly access the WIZnet Ethernet port. There is an extension for the IP65 network stack which adds support for the DAN][Controller interface to the WIZnet adapter.
 See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
 
-Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II directly accesses the Ethernet port (using IP65).
+Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II itself accesses the Ethernet port (using IP65).
 
 # Errata
 You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
