@@ -28,6 +28,8 @@ DISK_IMAGE_NAME := bin/DANII_FWUPDATE
 DAN2_FTP_IP := 192.168.4.65
 DAN2_VOL_IMAGE := /sd1/BLKDEV0C.PO
 
+ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
+
 all: $(DISK_IMAGE_NAME).po
 
 # build ProDOS disk image
@@ -37,7 +39,7 @@ $(DISK_IMAGE_NAME).po: bin/FWUPDATE.PRG Makefile
 	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
 	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANII.FW.UPDATE
 	@cat bin/FWUPDATE.PRG | $(AC) -p $(DISK_IMAGE_NAME).dsk DAN.FWUP.SYSTEM sys
-	@cat bin/EEPROM.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk EEPROM.SYSTEM sys
+	@cat ../eeprom/bin/EEPROM.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk EEPROM.SYSTEM sys
 	@echo "Converting to ProDOS..."
 	@python3 ../ipconfig/dsk2po.py $(DISK_IMAGE_NAME).dsk
 	@cp $(DISK_IMAGE_NAME).dsk ../../dsk/.
@@ -60,9 +62,9 @@ bin/dan2stk500.o: dan2stk500.asm
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ $<
 
 # generate include file with content of Arduino hex file
-bin/fw.h: ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.standard.hex bin
+bin/fw.h: $(ARDUINO_HEX_FILE) bin
 	@echo "Converting Arduino firmware hex to binary"
-	@python3 hex2bin.py --size 32768 --fillbyte 255 ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.standard.hex bin/fwimage.bin
+	@python3 hex2bin.py --size 32768 --fillbyte 255 $(ARDUINO_HEX_FILE) bin/fwimage.bin
 	@echo "Converting firmware binary to header file"
 	@python3 ../../bootpg/tools/file2header.py --binary --file bin/fwimage.bin > $@
 

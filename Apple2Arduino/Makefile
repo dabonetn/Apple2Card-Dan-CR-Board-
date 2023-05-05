@@ -1,13 +1,26 @@
 SOURCES := $(wildcard *.ino *.h *.c)
 
-all: Apple2Arduino.ino.with_bootloader.standard.hex
-	@echo To burn the firmware under Linux, execute:
-	@echo -e "\tminipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.with_bootloader.standard.hex -f ihex -e"
-	@echo -e "\tminipro -p 'ATMEGA328P@DIP28' -c config -w fuses.cfg"
+HEX_FILE      := Apple2Arduino.ino.with_bootloader.hex
 
-Apple2Arduino.ino.with_bootloader.standard.hex: $(SOURCES)
-	arduino-cli compile -b arduino:avr:uno --output-dir . Apple2Arduino.ino
+# Override default Arduino Uno settings and provide a custom bootloader
+# (must be stored in a "bootloaders" subdirectory, since that's hardcoded in the Arduino environment)
+BOOTLOADER    := optiboot_atmega328p_DANII_16000000L.hex
+PLATFORM_PATH := $(realpath .)
+BUILD_PROPERTIES := --build-property "runtime.platform.path=$(PLATFORM_PATH)" --build-property "bootloader.file=$(BOOTLOADER)"
+
+.PHONY: arduino all
+
+all: build
+
+build: $(HEX_FILE)
+
+# build and add custom bootloader
+$(HEX_FILE): $(SOURCES) bin
+	@arduino-cli compile -b arduino:avr:uno $(BUILD_PROPERTIES) --output-dir bin Apple2Arduino.ino
+	@cp bin/Apple2Arduino.ino.with_bootloader.hex $@
 
 clean:
-	rm Apple2Arduino.ino.eep Apple2Arduino.ino.elf Apple2Arduino.ino.hex Apple2Arduino.ino.standard.bin Apple2Arduino.ino.standard.hex
+	@rm -f bin/*.eep bin/*.elf bin/*.hex bin/*.bin
 
+bin:
+	@mkdir -p bin

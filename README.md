@@ -35,12 +35,15 @@ You may not need to solder the following components:
 * Push button **SW1** is only really useful for developers. You do not need to add it otherwise.
 * Resistors **R27** and **R28** should only be soldered if you intend to connect an SD card extension cable to the **J6** header. Do **not** solder these otherwise, or if you want to connect a WIZnet Ethernet adapter.
 * Jumper **JP1** only matters to allow the card to be powered through an external ICSP programmer. It can be hardwired/soldered closed (unless you intend to connect an ICSP programmer while the card is installed in an Apple II slot).
-* Jumper **JP2** always needs to be closed. It can be hardwired/soldered closed.
+* Bank switch jumper **JP2** always needs to be closed. It can be hardwired/soldered closed.
 * Jumper **JP5** always needs to be closed for normal operation. You would only open it if you intend to connect an ICSP programmer when the card is installed inside the Apple II. Otherwise it can be hardwired/soldered closed.
 * Jumper **JP6** only makes sense when you use an EEPROM (28Cxx) memory. Otherwise, if you use an EPROM (27Cxx) you can omit this jumper. It should be open for normal use.
 * You can omit the pin headers for the **J4** extender - and for **J5**, if you do not intend to use the card for development/debugging.
-* Add a pin header to **J1** to allow the use of an external ICSP programmer to the card.
+* Add a pin header to **J1** to allow connecting an external ICSP programmer to the card.
 * Add a pin header to **J6** to allow the extension of a WIZnet SPI network interface.
+
+## Errata
+You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
 
 # Programming the Devices
 
@@ -60,10 +63,9 @@ Jumpers JP2, JP3, JP4, JP6, JP7, JP8, JP9, and JP10 need to be closed when progr
 
 ## ATMEGA328P
 The code for the ATMEGA328P is the Apple2Arduino sketch in the [Apple2Arduino](Apple2Arduino/) directory. It can be built and uploaded using the Arduino environment.
-However, preferably this [custom bootloader](Apple2Arduino/ArduinoBootloader_optiboot_atmega328p_DANII_16000000L.hex) should be installed to the ATMEGA - which is also included in the full [Apple2Arduino.ino.with_bootloader.standard.hex](/Apple2Arduino/Apple2Arduino.ino.with_bootloader.standard.hex) hex file.
-Once the custom bootloader is installed, the Apple II is able to update the firmware of the ATMEGA (no more cables or ICSP programmers required).
-The firmware update utility can even be used to program the initial firmware (or to recover a "brain dead" ATMEGA - when the custom bootloader was installed).
-See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
+However, preferably use the provided [Apple2Arduino.ino.with_bootloader.hex](/Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex) hex file, which includes the custom bootloader.
+
+Once the binary with the custom bootloader is installed, the Apple II is able to do all further firmware updates of the ATMEGA (no more cables or ICSP programmers required).
 
 The recommended fuse settings for the ATMEGA328P are identical to the default settings of an Arduino Uno board:
 
@@ -77,7 +79,7 @@ The hfuse setting activates the use of the bootloader.
 You can program the ATMEGA328P using a programmer (such as a TL866 plus II). The project contains the matching ".hex" and "fuses.cfg" file for programming:
 
 * `cd Apple2Arduino`
-* `minipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.with_bootloader.standard.hex -f ihex -e`
+* `minipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.with_bootloader.hex -f ihex -e`
 * `minipro -p 'ATMEGA328P@DIP28' -c config -w fuses.cfg`
 
 ### ICSP Programmer
@@ -88,7 +90,8 @@ Any 5V Ardunio board can be ued as an ICSP programmer: simply upload the "Arduin
 
 A command-line for programming the fuses and bootloader with "avrdude" is:
 
-* `avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:Apple2Arduino.ino.with_bootloader.standard.hex`
+* `cd Apple2Arduino`
+* `avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:Apple2Arduino.ino.with_bootloader.hex`
 
 You may need to adapt "avrisp" and the "/dev/ttyUSB0" port to match your programmer device. The "avrisp" matches the ArduinoISP (e.g. an Arduino Uno board programmed to be an ISP).
 
@@ -125,9 +128,9 @@ When the card is the primary boot device then the message "DAN II: PRESS RETURN"
 * If the **RETURN** key is pressed, then the boot menu is loaded to configure the card (see below).
 * If the **ESCAPE** key is pressed, then the DAN][ Controller is skipped and the Apple II will search for the next boot device (e.g. your floppy drive).
 * If any of the keys **1** to **9** are pressed, then the respective volume from SD card 1 is booted (quick access).
-* If **no key** is pressed, then normal booting continues after about a second. This will boot the volume which was *most recently* selected through the boot menu.
-* If **SPACE** is pressed, then normal booting continues immediately (most recent boot menu selection).
-
+* If **SPACE** is pressed, then normal booting continues immediately. This will boot the volume which was *most recently* selected through the boot menu.
+* If **no key** is pressed, then also normal booting of the most recently selected volume continues after a brief timeout.
+ 
 ![Boot Message](pics/DAN2boot.jpg)
 
 ## Boot Menu
@@ -183,5 +186,11 @@ See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client
 
 Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II itself accesses the Ethernet port (using IP65).
 
-# Errata
-You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
+## Firmware Updates
+Once the custom bootloader was flashed to the ATMEGA, all further firmware updates can be done through the Apple II.
+The utility is even able to recover "bricked" cards - as long as the custom bootloader was installed.
+
+See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
+There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
+
+Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader. In this case the Apple II is unable to do the update. You will need to do a manual update using an ICSP programmer (see above).
