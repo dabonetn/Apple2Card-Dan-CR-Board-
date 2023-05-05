@@ -156,7 +156,10 @@ It's recommended to leave out the two resistors R27 and R28 on the controller PC
 
 LED D11 (just above the J6 header) indicates network activity of the WIZnet adapter.
 
-The [CAD](/CAD) folder contains a design for 3D printed bracket, which can be used to mount the WIZnet Ethernet adapter into the back of the Apple II.
+The [CAD](/CAD) folder contains two different designs for 3D printed bracket, which can be used to mount the WIZnet Ethernet adapter into the back of the Apple II.
+
+![3D Printed Eth Mount](pics/DAN2EthMount.jpg)
+
 
 ## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files. The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV01.PO-BLKDEV0F.PO. Other files and other directories are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
@@ -193,4 +196,5 @@ The utility is even able to recover "bricked" cards - as long as the custom boot
 See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
 There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
 
-Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader. In this case the Apple II is unable to do the update. You will need to do a manual update using an ICSP programmer (see above).
+Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader.
+In this case the Apple II is unable to do the update. You will need to do one more manual update using an ICSP programmer (see above).
