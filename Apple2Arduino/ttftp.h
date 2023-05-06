@@ -19,7 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-extern byte FtpMacIpPortData[]; // 6 bytes MAC address, 4 bytes IPv4 address
+extern byte   FtpMacIpPortData[]; // 6 bytes MAC address, 4 bytes IPv4 address
+extern int8_t FtpState;
 
 #ifdef __cplusplus
 extern "C"

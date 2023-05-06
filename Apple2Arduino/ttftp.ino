@@ -36,7 +36,7 @@
 
 /* size of the FTP data buffer on the stack (values >= 128 should work) */
 #define FTP_BUF_SIZE          512
-  
+
 /* Timeout in milliseconds until clients have to connect to a passive connection */
 #define FTP_PASV_TIMEOUT     3000
 
@@ -109,7 +109,6 @@ const char FTP_FAILED[]           PROGMEM = "Failed";
 // structure with local FTP variables
 struct
 {
-  int8_t  State       = FTP_NOT_INITIALIZED;
   uint8_t CmdBytes    = 0;        // FTP command: current number of received command bytes
   uint8_t ParamBytes  = 0;        // FTP command: current number of received parameter bytes
   uint8_t CmdId       = 0;        // current FTP command
@@ -118,8 +117,10 @@ struct
   char    CmdData[12]; // must just be large enough to hold file names (11 bytes for "BLKDEVXX.PO")
 } Ftp;
 
+int8_t  FtpState      = FTP_NOT_INITIALIZED;
+
 extern int __heap_start, *__brkval;
-  
+
 #if 1
   void FTP_CMD_REPLY(char* buf, uint16_t sz) {buf[sz] = '\r';buf[sz+1]='\n';FtpCmdClient.write(buf, sz+2);}
 #else
@@ -582,7 +583,7 @@ static void ftpInit()
   // IP address "0" disables the FTP server and Eth initialization completely
   if (FtpMacIpPortData[OFFSET_IP]==0)
   {
-    Ftp.State = FTP_DISABLED;
+    FtpState = FTP_DISABLED;
     return;
   }
 
@@ -602,7 +603,7 @@ static void ftpInit()
   {
     FTP_DEBUG_PRINTLN(F("Wiz5500 not found"));
     // no hardware: keep this module disabled
-    Ftp.State = FTP_DISABLED;
+    FtpState = FTP_DISABLED;
     return;
   }
 
@@ -611,7 +612,7 @@ static void ftpInit()
   {
     FTP_DEBUG_PRINTLN(F("Eth cable not connected"));
     // hardware but no connected cable: keep this module disabled
-    Ftp.State = FTP_DISABLED;
+    FtpState = FTP_DISABLED;
     return;
   }
 #endif
@@ -624,16 +625,16 @@ static void ftpInit()
   FTP_DEBUG_PRINTLN(Ethernet.localIP());
 #endif
 
-  Ftp.State = FTP_INITIALIZED;
+  FtpState = FTP_INITIALIZED;
 }
 
 // FTP processing loop
 void loopTinyFtp(void)
 {
   char buf[FTP_BUF_SIZE];
-  static int Throttle = 2000; // first FTP communication attempt after 2 seconds (Wiznet is slower than a bare Arduino w/o bootloader)
+  static int Throttle = 1000; // first FTP communication attempt after 500ms (Wiznet is slower than Arduino)
   
-  if ((Ftp.State < 0)||
+  if ((FtpState < 0)||
       ((Throttle != 0)&&((int) (millis()-Throttle) < 0)))
   {
     return;
@@ -642,21 +643,21 @@ void loopTinyFtp(void)
   // before talking to WIZnet, make sure the SPI bus is not blocked by a pending write
   mmc_wait_busy_spi();
 
-  if (Ftp.State == FTP_NOT_INITIALIZED)
+  if (FtpState == FTP_NOT_INITIALIZED)
   {
     ftpInit();
   }
 
   do
   {
-    if (Ftp.State == FTP_INITIALIZED) // initialized but not connected
+    if (FtpState == FTP_INITIALIZED) // initialized but not connected
     {
       // accept incomming command connection
       FtpCmdClient = FtpCmdServer.accept();
       if (FtpCmdClient.connected())
       {
         FTP_DEBUG_PRINTLN(F("FTP con"));
-        Ftp.State  = FTP_CONNECTED;
+        FtpState  = FTP_CONNECTED;
         // remember current Apple II volume configuration
         Ftp._file0 = slot0_fileno;
         Ftp._file1 = slot1_fileno;
@@ -669,7 +670,7 @@ void loopTinyFtp(void)
       }
     }
     else
-    if (Ftp.State == FTP_CONNECTED)
+    if (FtpState == FTP_CONNECTED)
     {
       if (!FtpCmdClient.connected())
       {
@@ -677,7 +678,7 @@ void loopTinyFtp(void)
         // give the remote client time to receive the data
         delay(10);
         FtpCmdClient.stop();
-        Ftp.State = FTP_INITIALIZED;
+        FtpState = FTP_INITIALIZED;
         // select original Apple II volumes (just as if nothing happened...)
         switchFile(0x0, Ftp._file0, Ftp._file1);
       }
@@ -715,7 +716,7 @@ void loopTinyFtp(void)
             // ignored
           }
           else
-          if (c == '\n') 
+          if (c == '\n')
           {
             // command & parameter is complete
             Ftp.CmdData[Ftp.ParamBytes] = 0;
@@ -733,7 +734,7 @@ void loopTinyFtp(void)
     }
     CHECK_MEM(1001);
 
-  } while (Ftp.State == FTP_CONNECTED);
+  } while (FtpState == FTP_CONNECTED);
 
   // check every 100ms for incomming FTP connections
   Throttle = millis()+100;

@@ -111,25 +111,17 @@ void showIpMac()
 	}
 }
 
-void main(void)
+void getSlot(void)
 {
-   char c=0;
-   int e,v;
-   char str[32];
-
-   // wipe screen
-   clrscr();
-
-   inverse();
-   printf("            DANII CONTROLLER           \n");
-   printf("          FTP/IP CONFIGURATION         \n\n");
-   norm();
-
    do
    {
         printf("\nCONTROLLER SLOT: #");
    	slot = getc(stdin);
    	printf("\n");
+
+   	if (slot == 27)
+   		break;
+   	else
    	if ((slot>='1')&&(slot<='7'))
    	{
 	   slot -= '0';
@@ -145,6 +137,14 @@ void main(void)
 	  slot = 0;
 	}
    } while (slot == 0);
+}
+
+void doConfig(void)
+{
+   char c=0;
+   int e,v;
+   char str[32];
+   uint8_t result;
 
    if (doDanConfig(slot, 0) != 0)
    {
@@ -200,7 +200,8 @@ void main(void)
 	printf("\n");
 
 	// set the new configuration	
-	if (doDanConfig(slot, 1) == 0)
+	result = doDanConfig(slot, 1);
+	if ((result == 0)||(result == 1)) // old firmware replied with 0 (and expected 512 bytes data, new firmware replies with 1, so expects no additional data)
 	{
 		printf("\n           ");
 		inverse();
@@ -221,5 +222,20 @@ void main(void)
 	}
    }
    getc(stdin);
+}
+
+void main(void)
+{
+   // wipe screen
+   clrscr();
+
+   inverse();
+   printf("            DANII CONTROLLER           \n");
+   printf("          FTP/IP CONFIGURATION         \n\n");
+   norm();
+
+   getSlot();
+   if (slot<=7)
+     doConfig();
 }
 

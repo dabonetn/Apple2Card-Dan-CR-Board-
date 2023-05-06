@@ -1,6 +1,6 @@
 /* DAN][ configuration */
 
-#define FW_VERSION "2.0.3"
+#define FW_VERSION "2.0.4"
 
 #define USE_ETHERNET     // enable Ethernet support
 #define USE_FTP          // enable FTP support
@@ -15,9 +15,13 @@
   2=original/stock v2 bootprogram by DL Marks
   3=bootpg with improved GUI (512byte)
   4=bootpg with cursor key controls (1024byte)
-  5=bootpg with mouse driver (TBD)
+  5=bootpg with IP configuration option (1536byte)
 */
-#define BOOTPG 4
+#ifdef USE_FTP
+  #define BOOTPG 5  // use boot program with FTP/IP config support
+#else
+  #define BOOTPG 4  // use boot program without FTP/IP support
+#endif
 
 // default IPv4 address (4 bytes, comma separated)
 #define FTP_IP_ADDRESS 192,168,1,65

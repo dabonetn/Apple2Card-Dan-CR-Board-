@@ -21,6 +21,8 @@ ioerr   = $27  ; I/O error code
 nodev   = $28  ; no device connected
 wperr   = $2B  ; write protect error
 
+BUFADDR = $0800 ; location of the buffer for DANII communication
+
 ; DAN][ commands
 GETSTATUS    =  0
 READBLOCK    =  1
@@ -50,16 +52,36 @@ dan2if_do:
     pha
 
     ; prepare command registers
-    lda #$08
-    sta bufhi
-    lda #$00
-    sta buflo
-    sta blklo
-    sta blkhi
-
-    lda  $0821       ; command passed in $821
+    lda  BUFADDR+$21 ; command passed in $821
     sta  command
-    ldx  $0820       ; slot number passed in $820
+    cmp  #SETIPCFG
+    bne  GETCFG
+
+    ; set IP configuration command
+    lda  BUFADDR+$05 ; least significant byte of MAC address
+    sta  unit        ; passed in unit
+
+    lda  BUFADDR+$06 ; first IP address byte
+    sta  buflo
+    lda  BUFADDR+$07 ; second IP address byte
+    sta  bufhi
+
+    lda  BUFADDR+$08 ; third IP address byte
+    sta  blklo
+
+    lda  BUFADDR+$09 ; fourth IP address byte
+    sta  blkhi
+
+    jmp  DOCMD
+
+GETCFG:
+    lda  #>BUFADDR
+    sta  bufhi
+    lda  #<BUFADDR
+    sta  buflo
+    sta  blklo
+    sta  blkhi
+    ldx  BUFADDR+$20 ; slot number passed in $820
     txa
     asl
     asl
@@ -67,11 +89,13 @@ dan2if_do:
     asl
     sta  unit
 
+DOCMD:
+    ldx  BUFADDR+$20 ; slot number passed in $820
     ldy  #$00
-    sty  $0820
-    sty  $0821
+    sty  BUFADDR+$20
+    sty  BUFADDR+$21
     jsr  dan_do
-    sta  $0820       ; return code
+    sta  BUFADDR+$20 ; return code
 ;    jmp  $ff69      ; debug
 
     ; restore registers
@@ -122,7 +146,7 @@ noerror:
 notstatus:
     lda  command
     cmp  #SETIPCFG
-    bne  readbytes    ; not a write command
+    bne  readcommand  ; not a write command
 writebytes:
     lda  (buflo),y    ; write a byte to the Arduino
     sta  $BFF8,x
@@ -143,6 +167,11 @@ quitok:
     lda  #$00
     clc
     rts
+readcommand:
+    lda  #>BUFADDR   ; reset the buffer location before reading data
+    sta  bufhi
+    lda  #<BUFADDR
+    sta  buflo
 readbytes:
     lda  $BFFA,x     ; wait until there's a byte available
     and  #$20

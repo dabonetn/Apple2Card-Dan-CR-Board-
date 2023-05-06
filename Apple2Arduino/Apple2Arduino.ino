@@ -53,8 +53,10 @@
 #elif BOOTPG==4
   #include "bootpg_cursor_v4.h"  // with cursor keys, v4, two boot blocks (1024bytes)
 #elif BOOTPG==5
+  #include "bootpg_ipcfg_v5.h"   // with IP configuration option, v6, three boot blocks (1536bytes)
+#elif BOOTPG==6
   #error Not implemented yet...
-  #include "bootpg_mouse_v5.h"  // with mouse driver, v5, multiple boot blocks (...bytes)
+  #include "bootpg_mouse_v6.h"   // with mouse driver, v6, multiple boot blocks (...bytes)
 #endif
 
 #define NUMBER_BOOTBLOCKS (sizeof(bootblocks)/(512*sizeof(uint8_t)))
@@ -118,8 +120,8 @@ void read_eeprom(void)
 #ifdef USE_FTP
     if (init_value >= 1) // newer version in EEPROM
     {
-      // read MAC + IP address from EEPROM
-      for (uint8_t i=0;i<10;i++)
+      // read last byte of MAC + full IP address from EEPROM
+      for (uint8_t i=5;i<10;i++)
         FtpMacIpPortData[i] = EEPROM.read(EEPROM_MAC_IP+i);
     }
 #endif
@@ -766,14 +768,17 @@ void do_send_ethernet(void)
 void do_set_ip_config(void)
 {
   get_unit_buf_blk();
-  write_dataport(0x00);
-  for (uint16_t i=0;i<512;i++)
-  {
-    uint8_t b = read_dataport();
-    if (i<10)
-      FtpMacIpPortData[i] = b;
-  }
+
+  // use bytes from standard parameters to pass the new IP address (and last byte of Mac address)
+  FtpMacIpPortData[5] = unit;       // least significant MAC address byte
+  FtpMacIpPortData[6] = buf & 0xff; // IP address byte 1
+  FtpMacIpPortData[7] = buf >> 8;   // IP address byte 2
+  FtpMacIpPortData[8] = blk & 0xff; // IP address byte 3
+  FtpMacIpPortData[9] = blk >> 8;   // IP address byte 4
   write_eeprom_ip();
+
+  // success: return 1(!=0) anyway. Sneaky trick - so we can reuse the routine from ROM (and prevent it from attempting to read further bytes).
+  write_dataport(1);
 }
 
 void do_get_ip_config(void)
@@ -782,7 +787,14 @@ void do_get_ip_config(void)
   write_dataport(0x00);
   for (uint8_t i=0;i<10;i++)
     write_dataport(FtpMacIpPortData[i]);
-  write_zeros(512-10);
+  write_zeros(6); // 6 bytes reserved (in case we want to extend the configuration)
+  // we may need to briefly wait for the FTP/Wiznet to be initialized, otherwise we cannot report the proper state
+  while (FtpState == 0)
+  {
+    loopTinyFtp();
+  }
+  write_dataport((FtpState==-1) ? 0 : 1); // return 1 when FTP/Wiznet present/enabled, 0 otherwise (not present or disabled)
+  write_zeros(512-17);
 }
 #endif
 

@@ -45,7 +45,7 @@ You may not need to solder the following components:
 ## Errata
 You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
 
-# Programming the Devices
+# Device Programming
 
 ## EPROM/EEPROM
 For the memory device of the card an EPROM or EEPROM of 4K/8K/16K/32K can be used: a 27C32/27C64/27C128/27C256 EPROM or a 28C32/28C64/28C128/28C256 EEPROM.
@@ -75,7 +75,7 @@ The recommended fuse settings for the ATMEGA328P are identical to the default se
 
 The hfuse setting activates the use of the bootloader.
 
-### MiniPRO / TL866 programmer
+### MiniPRO / TL866 Programmer
 You can program the ATMEGA328P using a programmer (such as a TL866 plus II). The project contains the matching ".hex" and "fuses.cfg" file for programming:
 
 * `cd Apple2Arduino`
@@ -139,9 +139,11 @@ The boot menu allows the selection of the volumes.
 
 ![Boot Menu](pics/bootmenu.jpg)
 
-Use the **ARROW KEYS** (or **SPACE**/**TAB**/**BACKSPACE**) to select the active volume for each SD card. Press **ESCAPE** to abort and **RETURN** to confirm.
-
-You can also select volumes through the number keys **1** to **9**.
+* Use the **ARROW KEYS** (or **SPACE**/**,**) to select the active volume for each SD card.
+* Alternatively press keys **1** to **9** or **A** to **F** to directly select volumes.
+* Press **RETURN** to keep the current selection.
+* Press **ESCAPE** to abort.
+* Press **I** to enter the IP configuration dialog (if you have a Wiznet adapter, see below).
 
 After selecting the volumes of the two slots, the system continues booting.
 
@@ -156,22 +158,44 @@ It's recommended to leave out the two resistors R27 and R28 on the controller PC
 
 LED D11 (just above the J6 header) indicates network activity of the WIZnet adapter.
 
-The [CAD](/CAD) folder contains two different designs for 3D printed bracket, which can be used to mount the WIZnet Ethernet adapter into the back of the Apple II.
+## Mounting Bracket
+The [CAD](/CAD) folder contains different STL designs for 3D printed brackets, which can be used to mount the WIZnet Ethernet adapter into the back of an Apple II.
 
 ![3D Printed Eth Mount](pics/DAN2EthMount.jpg)
 
-
 ## FTP Access
-When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files. The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV01.PO-BLKDEV0F.PO. Other files and other directories are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
+When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files.
+The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV01.PO-BLKDEV0F.PO.
+Other files and other directories are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
 
 The Apple II access is suspended as soon as any FTP session is active. Disconnect your FTP client to resume Apple II access to the volumes.
 
+FTP data is transfered at about 170-200KB/s. 140K disk-sized image transfers in less than a second. Full-sized 33MB images require about 2:45 minutes.
+
 Notice that any RESET of the Apple II also resets the DAN][Controller and the network device. So avoid pressing Ctrl-RESET on the Apple II while up- or downloading volume images via FTP.
 
-## IP Configuration
-The IP address for FTP is currently configured using a separate tool. See the [dsk](/dsk) folder for disk images with the IP configuration tool. The ".PO" image can also be stored as a volume on the DAN][ Controller.
+### Preparing SD Cards for FTP
+The FTP server cannot create new files, nor rename files. It also cannot enlarge files.
 
-*This tool (disk) will eventually be replaced by an option integrated into the normal boot menu (come back to check for updates soon :) ).*
+Prepare fresh SD cards before installing them by creating all required volume files (BLKDEV0X.PO) in the root folder of the SD card:
+Just use an empty 33MB ProDOS template for each file.
+The FTP server is able to upload/download data to a volume as soon as the respective file exists.
+
+Even if you prepare the SD card using ProDOS images of the maximum supported size (33MB), you will still be able to upload smaller ProDOS images via FTP (smaller is no problem, just larger files wouldn't work).
+
+You can upload files of any supported size. Small standard 140K floppy disk **ProDOS** images also work (not just large harddrive volumes).
+
+### IP Configuration
+The FTP server requires a fixed IP address. It is configured through the boot menu:
+
+* As normal, press **RETURN** after booting to enter the boot menu.
+* Then press '**I**' instead of selecting a boot volume.
+* Then enter the new IP address.
+* To disable the FTP server, set the IP to "0.0.0.0".
+
+The IP configuration is stored persistently.
+
+The FTP server is active when a Wiznet module is connected and an IP adress is configured. The IP address is also shown in the boot menu.
 
 ### Advanced FTP Clients
 The FTP server is limited to a single connection. If you use advanced FTP clients, like FileZilla, then you need to configure the FTP connection: see the "connection properties" and enable "Limit number of simulataneous connections" and set the limit to "1":

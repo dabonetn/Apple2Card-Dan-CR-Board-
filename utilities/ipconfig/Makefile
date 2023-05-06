@@ -31,30 +31,30 @@ DAN2_VOL_IMAGE := /sd1/BLKDEV0E.PO
 all: $(DISK_IMAGE_NAME).po
 
 # build ProDOS disk image
-$(DISK_IMAGE_NAME).po: bin/IPCONFIG.PRG
+$(DISK_IMAGE_NAME).po: bin/IPCONFIG.SYSTEM
 	@echo "Building volume DANII.IPCONFIG"
 	@cp ProDOS_312.dsk $(DISK_IMAGE_NAME).dsk
 	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
 	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANII.IPCONFIG
-	@cat bin/IPCONFIG.PRG | $(AC) -p $(DISK_IMAGE_NAME).dsk IPCONFIG.SYSTEM sys
+	@cat bin/IPCONFIG.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk IPCONFIG.SYSTEM sys
 	@echo "Converting to ProDOS..."
 	@python3 dsk2po.py $(DISK_IMAGE_NAME).dsk
 	@cp $(DISK_IMAGE_NAME).dsk ../../dsk/.
 	@cp $@ ../../dsk/.
 
 # build ProDOS executable
-bin/IPCONFIG.PRG: bin/IPCONFIG.o bin/dan2if.o
+bin/IPCONFIG.SYSTEM: bin/IPCONFIG.o bin/dan2if.o
 	@echo "Linking $@"
 	@ld65 -C apple2-system.cfg  -D __EXEHDR__=0 -m bin/IPCONFIG.list -o $@ bin/IPCONFIG.o bin/dan2if.o apple2.lib
 
 # build configuration utility
-bin/IPCONFIG.o: ipconfig.c
+bin/IPCONFIG.o: ipconfig.c Makefile
 	@echo "Compiling ipconfig.c"
 	@cc65 -t apple2 -D__EXEHDR__=0 -o bin/IPCONFIG.asm ipconfig.c
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ bin/IPCONFIG.asm
 
 # build DAN][ assembler interface
-bin/dan2if.o: dan2if.asm
+bin/dan2if.o: dan2if.asm Makefile
 	@echo "Assembling dan2if.asm"
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ $<
 
