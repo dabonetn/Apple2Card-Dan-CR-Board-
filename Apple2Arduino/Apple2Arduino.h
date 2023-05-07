@@ -45,8 +45,6 @@ extern "C" {
 #endif
 
 extern uint8_t unit;
-extern uint8_t slot0_fileno;
-extern uint8_t slot1_fileno;
-extern uint8_t slot0_state;
-extern uint8_t slot1_state;
+extern uint8_t slot_fileno[2];
+extern uint8_t slot_state[2];
 extern FIL     slotfile;

@@ -241,8 +241,8 @@ bool switchFile(uint8_t _unit, uint8_t _fileno1, uint8_t _fileno2)
 {
   unit = _unit;
   unmount_drive();
-  slot0_fileno = _fileno1;
-  slot1_fileno = _fileno2;
+  slot_fileno[0] = _fileno1;
+  slot_fileno[1] = _fileno2;
   initialize_drive();
   CHECK_MEM(1010);
 }
@@ -252,7 +252,7 @@ bool ftpSelectFile(uint8_t fileno)
   if (Ftp.Directory == DIR_ROOT)
     return false;
   switchFile((Ftp.Directory == DIR_SDCARD1) ? 0 : 0x80, fileno, fileno);
-  return (Ftp.Directory == DIR_SDCARD1) ? slot0_state : slot1_state;
+  return (Ftp.Directory == DIR_SDCARD1) ? slot_state[0] : slot_state[1];
 }
 
 // obtains volume name and size
@@ -659,8 +659,8 @@ void loopTinyFtp(void)
         FTP_DEBUG_PRINTLN(F("FTP con"));
         FtpState  = FTP_CONNECTED;
         // remember current Apple II volume configuration
-        Ftp._file0 = slot0_fileno;
-        Ftp._file1 = slot1_fileno;
+        Ftp._file0 = slot_fileno[0];
+        Ftp._file1 = slot_fileno[1];
         // FTP welcome
         ftpSendReply(buf, 220);
         // expect new command
