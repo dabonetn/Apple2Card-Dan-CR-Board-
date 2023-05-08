@@ -7,9 +7,7 @@ gerber*.zip
 Ignore/
 bootpg/bin
 eprom/bin
-utilities/eeprom/bin/*
-utilities/ipconfig/bin/*
-utilities/fwupdate/bin/*
+utilities/*/bin/*
 
 # Exclude the "no bootloader" hex file:
 Apple2Arduino/bin/*
