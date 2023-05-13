@@ -20,8 +20,10 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber to identify the drive */
 )
 {
-	slotno = pdrv;
-    return mmc_disk_status();
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;
+  return mmc_disk_status();
 }
 
 
@@ -34,8 +36,10 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
-	slotno = pdrv;
-	return mmc_disk_initialize();
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;
+  return mmc_disk_initialize();
 }
 
 
@@ -51,8 +55,10 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	slotno = pdrv;
-	return mmc_disk_read(buff, sector, count);
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;
+  return mmc_disk_read(buff, sector, count);
 }
 
 
@@ -69,8 +75,10 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	slotno = pdrv;
-	return mmc_disk_write(buff, sector, count);
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;
+  return mmc_disk_write(buff, sector, count);
 }
 #endif
 
@@ -86,7 +94,9 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	slotno = pdrv;
-	return mmc_disk_ioctl(cmd, buff);
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;
+  return mmc_disk_ioctl(cmd, buff);
 }
 #endif
