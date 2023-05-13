@@ -8,6 +8,7 @@ Ignore/
 bootpg/bin
 eprom/bin
 utilities/*/bin/*
+dsk/*
 
 # Exclude the "no bootloader" hex file:
 Apple2Arduino/bin/*
