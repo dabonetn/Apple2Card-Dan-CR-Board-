@@ -95,19 +95,29 @@ A command-line for programming the fuses and bootloader with "avrdude" is:
 
 You may need to adapt "avrisp" and the "/dev/ttyUSB0" port to match your programmer device. The "avrisp" matches the ArduinoISP (e.g. an Arduino Uno board programmed to be an ISP).
 
+# Firmware Updates
+Once the custom bootloader was flashed to the ATMEGA, all further firmware updates can be done through the Apple II.
+The utility is even able to recover "bricked" cards - as long as the custom bootloader was installed.
+
+See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
+There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
+
+Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader.
+In this case the Apple II is unable to do the update. You will need to do one more manual update using an ICSP programmer (see above).
+
 # SD Cards
 Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
 
 ## FAT16/FAT32 Mode
 You can use SD cards with either FAT16 or FAT32 file system as the first partition.
-In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **BLKDEV01.PO** - **BLKDEV09.PO** or **BLKDEV0A.PO** - **BLKDEV0F.PO** (up to 15 volumes). These volumes need to contain normal Apple II ProDOS volumes (between 140K to 33MB).
+In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **BLKDEV00.PO** - **BLKDEV09.PO** or **BLKDEV0A.PO** - **BLKDEV0F.PO** (up to 16 volumes). These volumes need to contain normal Apple II ProDOS volumes (between 140K to 33MB).
 
 An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](/volumes/SingleBlankVol.zip).
 
 ## Raw Block Mode
 Alternatively, raw block mode may be used (instead of FAT formatted SD cards). Only the first 512 MB will be used for raw blocks.
 
-To prepare SD cards for raw block mode, use the [BlankVols.zip](/volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes. Place this in SLOT1 of the card.
+To prepare SD cards for raw block mode, use the [BlankVols.zip](/volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
 
 ## Wide Block Mode
 TBD: Ordinarily, only a maximum of 64 MB is addressable, 32 MB for ProDOS drive 1, and a second 32 MB for ProDOS drive 2.  The program ALLVOLS.SYSTEM allows this limit to be circumvented in ProDOS 8.  For a SD card placed in slot 1, write the image in "BlankVols" or "BlankVolsSlot1"to it, and for a SD card in slot 2, write the image file "BlankVolsSlot2" to it.  When ALLVOLS.SYSTEM is executed, extra volumes may be added from slot 1 or slot 2 depending on if a SD card with block images is present in slot 1 or slot 2.  It is recommended that slot 1 be used for block images and slot 2 be used for FAT FS images.  This way, cards can be swapped in and out of slot 2 with different files transferred from another computer (perhaps using CiderPress) while the boot filesystem in slot 1 stays the same.
@@ -140,7 +150,7 @@ The boot menu allows the selection of the volumes.
 ![Boot Menu](pics/bootmenu.jpg)
 
 * Use the **ARROW KEYS** (or **SPACE**/**,**) to select the active volume for each SD card.
-* Alternatively press keys **1** to **9** or **A** to **F** to directly select volumes.
+* Alternatively press keys **0** to **9** or **A** to **F** to directly select volumes.
 * Press **RETURN** to keep the current selection.
 * Press **ESCAPE** to abort.
 * Press **I** to enter the IP configuration dialog (if you have a Wiznet adapter, see below).
@@ -165,18 +175,19 @@ The [CAD](/CAD) folder contains different STL designs for 3D printed brackets, w
 
 ## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files.
-The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV01.PO-BLKDEV0F.PO.
-Other files and other directories are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
+The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV00.PO-BLKDEV0F.PO.
+Other files and other directories stored on **FAT** format disks are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
 
 The Apple II access is suspended as soon as any FTP session is active. Disconnect your FTP client to resume Apple II access to the volumes.
 
-FTP data is transfered at about 170-200KB/s. 140K disk-sized image transfers in less than a second. Full-sized 33MB images require about 2:45 minutes.
+FTP data is transfered at about **170-200KB/s**. 140K disk-sized image transfers in less than a second. Full-sized 33MB images require about 2:45 minutes.
 
 Notice that any RESET of the Apple II also resets the DAN][Controller and the network device. So avoid pressing Ctrl-RESET on the Apple II while up- or downloading volume images via FTP.
 
 ### Preparing SD Cards for FTP
 The FTP server cannot create new files, nor rename files. It also cannot enlarge files.
 
+#### SD Cards with FAT Format
 Prepare fresh SD cards before installing them by creating all required volume files (BLKDEV0X.PO) in the root folder of the SD card:
 Just use an empty 33MB ProDOS template for each file.
 The FTP server is able to upload/download data to a volume as soon as the respective file exists.
@@ -184,6 +195,13 @@ The FTP server is able to upload/download data to a volume as soon as the respec
 Even if you prepare the SD card using ProDOS images of the maximum supported size (33MB), you will still be able to upload smaller ProDOS images via FTP (smaller is no problem, just larger files wouldn't work).
 
 You can upload files of any supported size. Small standard 140K floppy disk **ProDOS** images also work (not just large harddrive volumes).
+
+#### SD Cards with RAW Block Mode
+FTP access is also supported for SD cards using "**Raw Block Mode**" (see above). The SD card format is automatically detected. The volumes stored on raw block SD cards are also visible via FTP with standard filenames (BLKDEV00.PO-BLKDEV0F.PO) - just as if the SD card was using a FAT filesystem.
+
+The normal preparation of SD cards for Raw Block Mode (writing the "Blankvols.PO" to the card, see above) is enough to make these cards also available for FTP access. The directory list of the FTP root directory also shows which format was detected for each SD card (RAW vs FAT).
+
+![FAT vs RAW](pics/FTPCardType.png)
 
 ### IP Configuration
 The FTP server requires a fixed IP address. It is configured through the boot menu:
@@ -196,6 +214,8 @@ The FTP server requires a fixed IP address. It is configured through the boot me
 The IP configuration is stored persistently.
 
 The FTP server is active when a Wiznet module is connected and an IP adress is configured. The IP address is also shown in the boot menu.
+
+![IP Configuration](pics/ipconfig.jpg)
 
 ### Advanced FTP Clients
 The FTP server is limited to a single connection. If you use advanced FTP clients, like FileZilla, then you need to configure the FTP connection: see the "connection properties" and enable "Limit number of simulataneous connections" and set the limit to "1":
@@ -212,13 +232,3 @@ Alternatively to the FTP support, it is also possible for the Apple II to direct
 See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
 
 Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II itself accesses the Ethernet port (using IP65).
-
-## Firmware Updates
-Once the custom bootloader was flashed to the ATMEGA, all further firmware updates can be done through the Apple II.
-The utility is even able to recover "bricked" cards - as long as the custom bootloader was installed.
-
-See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
-There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
-
-Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader.
-In this case the Apple II is unable to do the update. You will need to do one more manual update using an ICSP programmer (see above).

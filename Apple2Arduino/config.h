@@ -2,8 +2,8 @@
 
 #define USE_ETHERNET     // enable Ethernet support
 #define USE_FTP          // enable FTP support
-#undef USE_RAW_BLOCKDEV  // raw BLOCKDEV support (when disabled, "0" is handled as a normal volume file instead)
-#undef USE_WIDEDEV       // wide device support
+#define USE_RAW_BLOCKDEV // raw BLOCKDEV support (when disabled, "0" is handled as a normal volume file instead)
+#define USE_WIDEDEV      // wide device support
 
 #undef USE_MEM_CHECK     // enable this for memory overflow checks
 #undef DEBUG_SERIAL      // disable serial debug output

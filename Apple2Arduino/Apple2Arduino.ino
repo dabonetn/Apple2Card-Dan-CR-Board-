@@ -62,15 +62,19 @@
 #define NUMBER_BOOTBLOCKS (sizeof(bootblocks)/(512*sizeof(uint8_t)))
 
 #ifdef DEBUG_SERIAL
-#include <SoftwareSerial.h>
-SoftwareSerial softSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
-#define SERIALPORT() (&softSerial)
+#ifdef SOFTWARE_SERIAL
+ #include <SoftwareSerial.h>
+  SoftwareSerial softSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
+  #define SERIALPORT() (&softSerial)
+#else
+  #define SERIALPORT() (&Serial)
+#endif
 #endif
 
 #define EEPROM_INIT    0
 #define EEPROM_SLOT0   1
 #define EEPROM_SLOT1   2
-#define EEPROM_UNUSED  3 // available for future use
+#define EEPROM_A2SLOT  3
 #define EEPROM_MAC_IP  4 // bytes 4-9: MAC + IP address for FTP server
 #define EEPROM_FREE   10 // next available byte, for future extensions
 
@@ -83,9 +87,11 @@ FATFS   fs;
 FIL     slotfile;
 uint8_t last_drive = 255;
 
-uint8_t slot_state[2] = {SLOT_STATE_NODEV, SLOT_STATE_NODEV};
+uint8_t slot_state[2] = {SLOT_STATE_NODEV,  SLOT_STATE_NODEV};
+uint8_t slot_type[2]  = {SLOT_TYPE_UNKNOWN, SLOT_TYPE_UNKNOWN}; // RAW vs FAT FS detection
 uint8_t slot_fileno[2];
 uint8_t slot_fileno_eeprom[2];
+uint8_t a2slot;
 
 static char blockvol[] = "X:";
 static char blockdev_filename[] = "X:BLKDEVXX.PO";
@@ -105,12 +111,14 @@ extern "C" {
 void read_eeprom(void)
 {
   slot_fileno[0] = slot_fileno[1] = 1;
+  a2slot = 0x70;
 
   uint8_t init_value = EEPROM.read(EEPROM_INIT);
   if (init_value != 255)
   {
     slot_fileno[0] = EEPROM.read(EEPROM_SLOT0);
     slot_fileno[1] = EEPROM.read(EEPROM_SLOT1);
+    a2slot         = EEPROM.read(EEPROM_A2SLOT) & 0x70;
 
 #ifdef USE_FTP
     if (init_value >= 1) // newer version in EEPROM
@@ -132,6 +140,8 @@ void write_eeprom(void)
     EEPROM.write(EEPROM_SLOT0, slot_fileno[0]);
   if (EEPROM.read(EEPROM_SLOT1) != slot_fileno[1])
     EEPROM.write(EEPROM_SLOT1, slot_fileno[1]);
+  if (EEPROM.read(EEPROM_A2SLOT) != a2slot)
+    EEPROM.write(EEPROM_A2SLOT, a2slot);
   if (EEPROM.read(EEPROM_INIT) == 255)
     EEPROM.write(EEPROM_INIT, 0);
   slot_fileno_eeprom[0] = slot_fileno[0];
@@ -160,13 +170,18 @@ void setup_pins(void)
 
 void setup_serial(void)
 {
+#if (!defined DEBUG_SERIAL)||(defined SOFTWARE_SERIAL)
   DISABLE_RXTX_PINS();
+#endif
+
 #ifdef DEBUG_SERIAL
-#ifdef SOFTWARE_SERIAL
+ #ifdef SOFTWARE_SERIAL
   softSerial.begin(9600);
   pinMode(SOFTWARE_SERIAL_RX, INPUT);
   pinMode(SOFTWARE_SERIAL_TX, OUTPUT);
-#endif
+ #else
+  Serial.begin(115200);
+ #endif
 #endif
 }
 
@@ -191,7 +206,8 @@ uint8_t read_dataport(void)
   return byt;
 }
 
-uint8_t unit;
+uint8_t  unit;
+uint32_t blockloc;
 static uint16_t buf;
 static uint16_t blk;
 
@@ -224,6 +240,8 @@ uint8_t hex_digit(uint8_t ch)
 void set_blockdev_filename(uint8_t filesystem)
 {
   uint8_t fileno       = slot_fileno[filesystem];
+  if (fileno == 255)
+    fileno = 0;
   blockdev_filename[0] = hex_digit(filesystem);
   blockdev_filename[8] = hex_digit(fileno >> 4);
   blockdev_filename[9] = hex_digit(fileno & 0x0F);
@@ -244,7 +262,7 @@ uint8_t check_change_filesystem(uint8_t current_filesystem)
   if (current_filesystem < 2)
   {
     blockvol[0] = '0'+current_filesystem;
-    if (f_mount(&fs, blockvol, 0) != FR_OK)
+    if (f_mount(&fs, blockvol, 1) != FR_OK)
       return 0;
     set_blockdev_filename(current_filesystem);
     if (f_open(&slotfile, blockdev_filename, FA_READ | FA_WRITE) != FR_OK)
@@ -259,195 +277,284 @@ uint8_t check_change_filesystem(uint8_t current_filesystem)
 
 void initialize_drive(void)
 {
+  // make sure everything is unmounted first
+  check_change_filesystem(255);
+
   uint8_t slot = (unit >> 7);
-  if (slot_state[slot] == SLOT_STATE_NODEV)
+
+  // file system type known yet?
+  if (slot_type[slot] == SLOT_TYPE_UNKNOWN)
   {
-    if (slot_fileno[slot] == 255)
+    blockvol[0] = '0'+slot;
+    if (f_mount(&fs, blockvol, 1) == FR_OK) // immediate mount
     {
-#ifdef USE_WIDEDEV
-      if (slot_state[slot^1] == SLOT_STATE_NODEV)
-      {
-        if (disk_initialize(0) == 0)
-          slot_state[0] = slot_state[1] = SLOT_STATE_WIDEDEV;
-      }
-#endif
+      slot_type[slot] = SLOT_TYPE_FAT;  // FAT FS detected
+      f_unmount(blockvol);
     }
-#ifdef USE_RAW_BLOCKDEV
-    else if (slot_fileno[slot] == 0)
-    {
-      if (disk_initialize(slot) == 0)
-        slot_state[slot] = SLOT_STATE_BLOCKDEV;
-    }
-#endif
     else
     {
-      check_change_filesystem(255);
-      if (check_change_filesystem(slot))
-        slot_state[slot] = SLOT_STATE_FILEDEV;
+      // It's not a FAT disk. But is it raw/ProDOS disk?
+      fs.winsect = -1; // invalidate sector window
+      if (disk_read(slot, fs.win, 2, 1) != 0) // read sector 2 with ProDOS header of volume 1
+      {
+        // no disk or invalid format
+        return;
+      }
+
+      if ((fs.win[4]<=0xf0)&& // check key block (with valid volume name)
+          (0x0D27 != *((uint16_t*)&fs.win[0x23]))) // check entry length/entries per block=$27/$0D
+      {
+        return;
+      }
+
+      // seems legit: raw block disk with ProDOS header in volume 1
+      slot_type[slot] = SLOT_TYPE_RAW;
     }
   }
+
+  if (slot_state[slot] != SLOT_STATE_NODEV)
+    return;
+
+  if (slot_type[slot] == SLOT_TYPE_FAT)
+  {
+    if (check_change_filesystem(slot))
+      slot_state[slot] = SLOT_STATE_FILEDEV;
+    return;
+  }
+
+  // raw block disk
+
+#ifdef USE_WIDEDEV
+  if (slot_fileno[0] == 255)
+  {
+    if (slot_state[slot^1] == SLOT_STATE_NODEV)
+    {
+      if (disk_initialize(0) == 0)
+        slot_state[0] = slot_state[1] = SLOT_STATE_WIDEDEV;
+    }
+    return;
+  }
+#endif
+
+#ifdef USE_RAW_BLOCKDEV
+  if (disk_initialize(slot) == 0)
+    slot_state[slot] = SLOT_STATE_BLOCKDEV;
+#endif
 }
 
 void unmount_drive(void)
 {
   uint8_t slot = (unit >> 7);
-  switch (slot_state[slot])
-  {
-    case SLOT_STATE_NODEV:
-      return;
-    case SLOT_STATE_WIDEDEV:
-    case SLOT_STATE_BLOCKDEV:
-      slot_state[slot] = SLOT_STATE_NODEV;
-      return;
-    case SLOT_STATE_FILEDEV:
+  if (SLOT_STATE_FILEDEV == slot_state[slot])
       check_change_filesystem(255);
-      slot_state[slot] = SLOT_STATE_NODEV;
-      return;
+  slot_state[slot] = SLOT_STATE_NODEV;
+}
+
+void init_all_drives(void)
+{
+  unit = 0;
+  initialize_drive();
+  unit = 0x80;
+  initialize_drive();
+}
+
+// returns error code, 0=OK, 0x28=ERROR
+uint8_t check_unit_status(void)
+{
+  uint8_t slot = (unit >> 7);
+  return (slot_state[slot] != SLOT_STATE_NODEV) ? 0 : 0x28;
+}
+
+uint8_t do_status(void)
+{
+  get_unit_buf_blk();
+
+  uint8_t returncode = check_unit_status();
+  write_dataport(returncode);
+
+  return returncode;
+}
+
+void calculate_block_location()
+{
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
+  uint8_t slot = (unit >> 7);
+  if (slot_type[slot] == SLOT_TYPE_RAW)
+  {
+    uint8_t unitshift = unit;
+    if (slot_state[0] == SLOT_STATE_WIDEDEV)
+    {
+      unitshift &= 0xF0;
+    }
+    else
+    {
+      uint8_t fno = slot_fileno[slot] << 4;
+      unitshift &= 0x70;
+      if (unitshift == a2slot)
+      {
+        unitshift = fno;
+      }
+      else
+      if (unitshift == fno)
+      {
+        unitshift |= 0x80; // do not allow a single volume to be mapped multiple times
+      }
+    }
+
+    blockloc = ((uint32_t)blk) | (((uint32_t)(unitshift)) << 12);
+    blockloc &= 0x001FFFFF;
+  }
+  else
+#endif
+  {
+      blockloc = ((uint32_t)blk) << 9; // file offset in bytes
   }
 }
 
-uint8_t check_unit_nodev(void)
+#if BOOTPG>1
+void read_bootblock(uint8_t* buf)
 {
-  uint8_t slot = (unit >> 7);
-  if (slot_state[slot] != SLOT_STATE_NODEV)
-    return 1;
+  blk &= 0xff;
+  while (blk >= NUMBER_BOOTBLOCKS)
+    blk -= NUMBER_BOOTBLOCKS;
 
-  write_dataport(0x28);
+  blk <<= 9;
+  for (uint16_t i = 0; i < 512; i++)
+  {
+    buf[i] = pgm_read_byte(&bootblocks[blk + i]);
+  }
+}
+#endif
+
+// read a block from disk or from the boot program area, returns 0=OK
+uint8_t read_block(uint8_t rdtype, uint8_t* buf)
+{
+  uint8_t returncode = check_unit_status();
+
+#if BOOTPG>1
+  if ( (rdtype==RD_BOOT_BLOCK)||
+      ((rdtype==RD_FAILSAFE)&&(returncode != 0)))
+  {
+    // initial ROM bootloader loading: transmit bootpg if volume is missing
+    read_bootblock(buf);
+    return 0;
+  }
+#endif
+
+  if (returncode != 0)
+    return returncode;
+
+  uint8_t slot = (unit >> 7);
+
+#ifdef USE_WIDEDEV
+  if (slot_state[0] == SLOT_STATE_WIDEDEV)
+  {
+    slot = 0;
+  }
+#endif
+
+#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
+  if (slot_type[slot] == SLOT_TYPE_RAW)
+  {
+      if (disk_read(slot, buf, blockloc, 1) != 0)
+      {
+        return 0x27;
+      }
+  }
+  else
+#endif
+  {
+    UINT br;
+    if (!check_change_filesystem(slot))
+    {
+      return 0x27;
+    }
+    // only seek when necessary
+    if ((f_tell(&slotfile) != blockloc)&&(f_lseek(&slotfile, blockloc) != FR_OK))
+    {
+        return 0x27;
+    }
+    if ((f_read(&slotfile, buf, 512, &br) != FR_OK) ||
+        (br != 512))
+    {
+      return 0x27;
+    }
+  }
   return 0;
 }
 
-void do_status(void)
+void do_read(uint8_t rdtype)
 {
-  get_unit_buf_blk();
-  if (check_unit_nodev())
-    write_dataport(0x00);
-}
-
-static uint32_t blockloc;
-
-void calculate_block_location(uint8_t voltype)
-{
-  uint8_t unitshift = unit & ((voltype == SLOT_STATE_WIDEDEV) ? 0xF0 : 0x70);
-  blockloc = ((uint32_t)blk) | (((uint32_t)(unitshift)) << 12);
-}
-
-void calculate_file_location(void)
-{
-  blockloc = ((uint32_t)blk) << 9;
-}
-
-#if BOOTPG>1
-void transmit_bootblock(void)
-{
-  write_dataport(0x00);
-
-  if (blk >= NUMBER_BOOTBLOCKS)
-    blk = 0;
-  blk <<= 9;
-
-  DATAPORT_MODE_TRANS();
-  for (uint16_t i = 0; i < 512; i++)
-  {
-    while (READ_IBFA() != 0);
-    WRITE_DATAPORT(pgm_read_byte(&bootblocks[blk + i]));
-    STB_LOW();
-    STB_HIGH();
-  }
-  DATAPORT_MODE_RECEIVE();
-}
-
-void do_send_bootblock(void)
-{
-  get_unit_buf_blk();
-  transmit_bootblock();
-}
-#endif
-
-void do_read(uint8_t failsafe)
-{
-  // failsafe==false: normal read from volume
-  // failsafe==true: read from volume, but if it's missing, read from bootpg instead
-
-  UINT br;
   uint8_t buf[512];
 
   get_unit_buf_blk();
+
+  calculate_block_location();
+  uint8_t returncode = read_block(rdtype, buf);
+
+  write_dataport(returncode);
+
+  if (returncode==0)
+  {
+    DATAPORT_MODE_TRANS();
+    for (uint16_t i = 0; i < 512; i++)
+    {
+      while (READ_IBFA() != 0);
+      WRITE_DATAPORT(buf[i]);
+      STB_LOW();
+      STB_HIGH();
+    }
+    DATAPORT_MODE_RECEIVE();
+  }
+}
+
+// write a block to disk: returns 0=OK
+uint8_t write_block(uint8_t* buf)
+{
+  UINT br;
   uint8_t slot = (unit >> 7);
 
-#if BOOTPG>1
-  if ((failsafe)&&
-      (slot_state[slot] == SLOT_STATE_NODEV))
+#ifdef USE_WIDEDEV
+  if (slot_state[0] == SLOT_STATE_WIDEDEV)
   {
-    // initial ROM bootloader loading: transmit bootpg if volume is missing
-    return transmit_bootblock();
+    slot = 0;
   }
 #endif
 
-  if (check_unit_nodev() == 0)
-    return;
-
-  switch (slot_state[slot])
-  {
 #if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
- #ifdef USE_WIDEDEV
-    case SLOT_STATE_WIDEDEV:
- #endif
- #ifdef USE_RAW_BLOCKDEV
-    case SLOT_STATE_BLOCKDEV:
- #endif
-      calculate_block_location(slot_state[slot]);
- #ifdef USE_RAW_BLOCKDEV
-      if (disk_read((slot_state[slot] == SLOT_STATE_BLOCKDEV) ? slot : 0, buf, blockloc, 1) != 0)
- #else
-      if (disk_read(0, buf, blockloc, 1) != 0)
- #endif
-      {
-        write_dataport(0x27);
-        return;
-      }
-      break;
-#endif
-    case SLOT_STATE_FILEDEV:
-      if (!check_change_filesystem(slot))
-      {
-        write_dataport(0x27);
-        return;
-      }
-      calculate_file_location();
-      if ((f_lseek(&slotfile, blockloc) != FR_OK) ||
-          (f_read(&slotfile, buf, 512, &br) != FR_OK) ||
-          (br != 512))
-      {
-        write_dataport(0x27);
-        return;
-      }
-      break;
-  }
-
-  write_dataport(0x00);
-  DATAPORT_MODE_TRANS();
-  for (uint16_t i = 0; i < 512; i++)
+  if (slot_type[slot] == SLOT_TYPE_RAW)
   {
-    while (READ_IBFA() != 0);
-    WRITE_DATAPORT(buf[i]);
-    STB_LOW();
-    STB_HIGH();
+    if (disk_write(slot, buf, blockloc, 1) != 0)
+      return 1;
   }
-  DATAPORT_MODE_RECEIVE();
+  else
+#endif
+  {
+    if (!check_change_filesystem(slot))
+      return 1;
+
+    // do not allow to write beyond the current file size
+    if (blockloc+512 > f_size(&slotfile))
+      return 1;
+
+    // only seek when necessary
+    if ((f_tell(&slotfile) != blockloc)&&(f_lseek(&slotfile, blockloc) != FR_OK))
+      return 1;
+
+    if ((f_write(&slotfile, buf, 512, &br) != FR_OK) ||
+        (br != 512))
+      return 1;
+  }
+  return 0;
 }
 
 void do_write(void)
 {
-  UINT br;
-  uint8_t buf[512];
-
-  get_unit_buf_blk();
-  uint8_t slot = (unit >> 7);
-
-  if (check_unit_nodev() == 0)
+  uint8_t returncode = do_status();
+  if (returncode != 0)
     return;
-  write_dataport(0x00);
 
+  uint8_t buf[512];
   for (uint16_t i = 0; i < 512; i++)
   {
     while (READ_OBFA() != 0);
@@ -456,42 +563,13 @@ void do_write(void)
     ACK_HIGH();
   }
 
-  switch (slot_state[slot])
-  {
-#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
- #ifdef USE_WIDEDEV
-    case SLOT_STATE_WIDEDEV:
- #endif
- #ifdef USE_RAW_BLOCKDEV
-    case SLOT_STATE_BLOCKDEV:
- #endif
-      calculate_block_location(slot_state[slot]);
- #ifdef USE_RAW_BLOCKDEV
-      disk_write(slot_state[slot] == SLOT_STATE_BLOCKDEV ? slot : 0, buf, blockloc, 1);
- #else
-      disk_write(0, buf, blockloc, 1);
- #endif
-      break;
-#endif
-    case SLOT_STATE_FILEDEV:
-      if (!check_change_filesystem(slot))
-        return;
-      calculate_file_location();
-      if ((f_lseek(&slotfile, blockloc) != FR_OK) ||
-          (f_write(&slotfile, buf, 512, &br) != FR_OK) ||
-          (br != 512))
-        return;
-      break;
-  }
-  return;
+  calculate_block_location();
+  write_block(buf);
 }
 
 void do_format(void)
 {
-  get_unit_buf_blk();
-  if (check_unit_nodev() == 0)
-    return;
-  write_dataport(0x00);
+  do_status();
 }
 
 void write_zeros(uint16_t num)
@@ -517,6 +595,8 @@ void do_set_volume(uint8_t cmd)
   get_unit_buf_blk();
   write_dataport(0x00);
 
+  a2slot = unit & 0x70;
+
   unit = 0x80;
   unmount_drive();
 
@@ -531,11 +611,7 @@ void do_set_volume(uint8_t cmd)
   if ((cmd != 6)&&(cmd != 8)) // don't update EEPROM for temporary selections
     write_eeprom();
 
-  unit = 0x80;
-  initialize_drive();
-
-  unit = 0x0;
-  initialize_drive();
+  init_all_drives();
 
   if ((cmd != 4)&&(cmd != 8)) // dummy 512 byte block response for commands 6+7
     write_zeros(512);
@@ -658,7 +734,7 @@ void do_set_ip_config(void)
   FtpMacIpPortData[9] = blk >> 8;   // IP address byte 4
   write_eeprom_ip();
 
-  // success: return 1(!=0) anyway. Sneaky trick - so we can reuse the routine from ROM (and prevent it from attempting to read further bytes).
+  // success: return 1(!=0) anyway. Sneaky trick - so we can reuse the routine from ROM and prevent it from reading further bytes
   write_dataport(1);
 }
 
@@ -690,7 +766,7 @@ void do_command()
   {
     case 0:    do_status();
       break;
-    case 1:    do_read(false); // normal read
+    case 1:    do_read(RD_DISK); // normal read
       break;
     case 2:    do_write();
       break;
@@ -704,7 +780,7 @@ void do_command()
     case 5:
     case 9:    do_get_volume(cmd);
       break;
-    case 10:   do_read(true); // failsafe read
+    case 10:   do_read(RD_FAILSAFE); // failsafe read
       break;
 #ifdef USE_ETHERNET
     case 0x10: do_initialize_ethernet();
@@ -722,7 +798,7 @@ void do_command()
 #endif
 #if BOOTPG>1
     case 13+128:
-    case 32+128:  do_send_bootblock();
+    case 32+128:  do_read(RD_BOOT_BLOCK);
       break;
 #endif
     case 0xFF: // intentional illegal command always returning an error, just for synchronisation
@@ -765,10 +841,7 @@ void setup()
   setup_serial();
   read_eeprom();
 
-  unit = 0;
-  initialize_drive();
-  unit = 0x80;
-  initialize_drive();
+  init_all_drives();
 
 #ifdef DEBUG_SERIAL
   SERIALPORT()->println("0000");
