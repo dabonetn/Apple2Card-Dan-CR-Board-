@@ -447,8 +447,13 @@ CARDMSG:
         .BYTE 0
 
 A2FOREVER:
-         ASCINV  "  APPLE II FOREVER!"
-        .BYTE 0
+         ASCINV  "  APPLE II FOREVER!  V"
+         .BYTE '0'+FW_MAJOR
+         ASCINV "."
+         .BYTE '0'+FW_MINOR
+         ASCINV "."
+         .BYTE '0'+FW_MAINT
+         .BYTE 0
 
 VOLSEL:
          ASCINV  "DAN II VOLUME SELECTOR"

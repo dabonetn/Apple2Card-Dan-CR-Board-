@@ -21,6 +21,7 @@
 
 #include "ttftp.h"
 #include "config.h"
+#include "fwversion.h"
 #include "Apple2Arduino.h"
 #include <Ethernet.h>
 
