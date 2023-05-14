@@ -15,7 +15,7 @@ clean:
 FW_VERSION := $(subst ",,$(FW_VERSION))
 ZIP_FILE := DANII_Release_v$(FW_VERSION).zip
 
-DISK_FILES := DANII_FW_$(FW_VERSION).po DANII_FW_$(FW_VERSION).dsk ip65.po ip65.dsk DANII_FTP_IPCONFIG.dsk
+DISK_FILES := DANII_FW_$(FW_VERSION).po DANII_FW_$(FW_VERSION).dsk ip65.po ip65.dsk DANII_FTP_IPCONFIG.dsk DANII_FTP_IPCONFIG.po
 
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
 UTILS := utilities/allvols/bin/ALLVOLS.SYSTEM
