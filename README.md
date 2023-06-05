@@ -137,7 +137,7 @@ When the card is the primary boot device then the message "DAN II: PRESS RETURN"
 
 * If the **RETURN** key is pressed, then the boot menu is loaded to configure the card (see below).
 * If the **ESCAPE** key is pressed, then the DAN][ Controller is skipped and the Apple II will search for the next boot device (e.g. your floppy drive).
-* If any of the keys **1** to **9** are pressed, then the respective volume from SD card 1 is booted (quick access).
+* If any of the keys **0** to **9** are pressed, then the respective volume from SD card 1 is booted (quick access).
 * If **SPACE** is pressed, then normal booting continues immediately. This will boot the volume which was *most recently* selected through the boot menu.
 * If **no key** is pressed, then also normal booting of the most recently selected volume continues after a brief timeout.
  
@@ -230,5 +230,7 @@ Notice that ProDOS volume names and volume sizes are displayed via FTP. The owne
 ## Apple II Ethernet Access
 Alternatively to the FTP support, it is also possible for the Apple II to directly access the WIZnet Ethernet port. There is an extension for the IP65 network stack which adds support for the DAN][Controller interface to the WIZnet adapter.
 See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
+
+There is also a variant of **ADTPro** with the updated IP65 stack, supporting the DAN][ controller's Ethernet port - see [here](https://github.com/ThorstenBr/adtproDAN2/releases).
 
 Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II itself accesses the Ethernet port (using IP65).
