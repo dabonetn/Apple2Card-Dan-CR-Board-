@@ -54,22 +54,20 @@ bin/FWUPDATE.PRG: bin/fwupdate.o bin/dan2stk500.o
 	@ld65 -C apple2-system.cfg  -D __EXEHDR__=0 -vm -m bin/FWUPDATE.list -o $@ bin/fwupdate.o bin/dan2stk500.o apple2.lib
 
 # build firmware update module
-bin/fwupdate.o: fwupdate.c bin/fw.h
+bin/fwupdate.o: fwupdate.c
 	@echo "Compiling fwupdate.c"
 	@cc65 -t apple2 -D__EXEHDR__=0 -o bin/fwupdate.asm fwupdate.c
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ bin/fwupdate.asm
 
 # build STK500 updater
-bin/dan2stk500.o: dan2stk500.asm
+bin/dan2stk500.o: dan2stk500.asm bin/fwimage.bin
 	@echo "Assembling dan2stk500.asm"
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ $<
 
 # generate include file with content of Arduino hex file
-bin/fw.h: $(ARDUINO_HEX_FILE) bin
+bin/fwimage.bin: $(ARDUINO_HEX_FILE) bin
 	@echo "Converting Arduino firmware hex to binary"
 	@python3 hex2bin.py --size 32768 --fillbyte 255 $(ARDUINO_HEX_FILE) bin/fwimage.bin
-	@echo "Converting firmware binary to header file"
-	@python3 ../../bootpg/tools/file2header.py --binary --file bin/fwimage.bin > $@
 
 bin:
 	- mkdir bin

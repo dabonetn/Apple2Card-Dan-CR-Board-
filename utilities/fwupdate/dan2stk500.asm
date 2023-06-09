@@ -91,9 +91,9 @@ setWarmStartAX:     ; address in A and X
     rts
 
 setupBuffer:        ; setup local buffer pointer and Arduino flash word address
-    lda  $0821      ; passes lower address of firmware data buffer
+    lda  #<FW_PTR   ; load lower address of firmware data buffer
     sta  buflo
-    lda  $0822      ; passes higher address of firmware data buffer
+    lda  #>FW_PTR   ; load higher address of firmware data buffer
     sta  bufhi
     lda  #$00
     sta  adrhi      ; clear Arduino flash word address
@@ -453,3 +453,4 @@ MSG_COMPLETE:
         ASCINV "UPDATE COMPLETE! RESTART TO CONTINUE."
         .BYTE 13+128,0
 
+FW_PTR:  .incbin   "bin/fwimage.bin"

@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <apple2.h>
 #include <conio.h>
-#include "bin/fw.h"
 
 typedef unsigned char uint8_t;
 typedef unsigned int  uint16_t;
@@ -95,8 +94,6 @@ void main(void)
   } while (slot == 0);
 
   p[0x20] = slot;
-  p[0x21] = ((uint16_t) FWIMAGE_BIN)&0xff;
-  p[0x22] = ((uint16_t) FWIMAGE_BIN)>>8;
 
   printf("\n");
   printf("PRESS\n      ");
