@@ -20,7 +20,7 @@
 
 include ../version.mk
 
-SOURCES := $(wildcard *.ino *.h *.c)
+SOURCES := $(wildcard *.ino *.c *.cpp *.h)
 
 HEX_FILE      := Apple2Arduino.ino.with_bootloader.hex
 

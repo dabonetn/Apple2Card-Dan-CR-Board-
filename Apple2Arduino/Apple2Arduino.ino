@@ -46,7 +46,9 @@
 #endif
 
 // Include header with selected boot program
-#if BOOTPG==2
+#if BOOTPG<=1
+  #warning No bootpg selected.
+#elif BOOTPG==2
   #include "bootpg_stock_v2.h"   // stock/original bootpg v2 by DL Marks (512bytes)
 #elif BOOTPG==3
   #include "bootpg_v3.h"         // improved GUI menu v3, single boot block (512bytes)

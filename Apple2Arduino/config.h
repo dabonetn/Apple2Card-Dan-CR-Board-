@@ -6,7 +6,7 @@
 #define USE_WIDEDEV      // wide device support
 
 #undef USE_MEM_CHECK     // enable this for memory overflow checks
-#undef DEBUG_SERIAL      // disable serial debug output
+#undef DEBUG_SERIAL      // enable this for serial debug output
 
 /* Select boot program:
   1=no boot program
@@ -22,7 +22,7 @@
 #endif
 
 // default IPv4 address (4 bytes, comma separated)
-#define FTP_IP_ADDRESS 192,168,1,65
+#define FTP_IP_ADDRESS 0,0,0,0 // disabled by default (needs to be enabled manually through the configuration utility)
 
 // default MAC address (6 bytes, comma separated)
 #define FTP_MAC_ADDRESS 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
