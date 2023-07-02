@@ -15,12 +15,9 @@
   3=bootpg with improved GUI (512byte)
   4=bootpg with cursor key controls (1024byte)
   5=bootpg with IP configuration option (1536byte)
+  6=bootpg with flexible volume/SD card mapping (byte)
 */
-#ifdef USE_FTP
-  #define BOOTPG 5  // use boot program with FTP/IP config support
-#else
-  #define BOOTPG 4  // use boot program without FTP/IP support
-#endif
+#define BOOTPG 6
 
 // default IPv4 address (4 bytes, comma separated)
 #define FTP_IP_ADDRESS 0,0,0,0 // disabled by default (needs to be enabled manually through the configuration utility)

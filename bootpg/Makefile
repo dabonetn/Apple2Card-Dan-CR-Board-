@@ -43,3 +43,8 @@ clean:
 check:
 	@(python3 -V > /dev/null 2> /dev/null) || (echo "ERROR: Python3 installation is required to convert binaries!"; exit 1)
 
+
+disk: bin/bootpg_flex_v6.bin
+	cp _Master.dsk bin/testdisk.dsk
+	cat bin/bootpg_flex_v6.bin | java -jar tools/AppleCommander-1.3.5.13-ac.jar -p bin/testdisk.dsk BOOTPG bin
+

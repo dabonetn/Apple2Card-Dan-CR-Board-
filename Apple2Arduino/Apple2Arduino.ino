@@ -57,8 +57,9 @@
 #elif BOOTPG==5
   #include "bootpg_ipcfg_v5.h"   // with IP configuration option, v6, three boot blocks (1536bytes)
 #elif BOOTPG==6
-  #error Not implemented yet...
-  #include "bootpg_mouse_v6.h"   // with mouse driver, v6, multiple boot blocks (...bytes)
+  #include "bootpg_flex_v6.h"   // with flexible volume/SD card mapping
+#else
+  #error Selected BOOTPG is not implemented.
 #endif
 
 #define NUMBER_BOOTBLOCKS (sizeof(bootblocks)/(512*sizeof(uint8_t)))
