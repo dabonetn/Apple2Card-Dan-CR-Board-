@@ -246,67 +246,48 @@ bool ftpAcceptDataConnection(bool Cleanup=false)
   return false;
 }
 
-bool switchFile(uint8_t slot, uint8_t _fileno)
-{
-  unit = (slot << 7); // 0x0 or 0x80
-
-  if (slot_type[slot] == SLOT_TYPE_RAW) // RAW BLOCK mode?
-  {
-    slot_fileno[slot] = 0;
-  }
-  else
-  {
-    slot_fileno[slot] = _fileno;
-  }
-
-  unmount_drive();
-  initialize_drive();
-  CHECK_MEM(1010);
-}
-
-uint8_t ftpSelectFile(uint8_t fileno)
+bool ftpSelectFile(uint8_t fileno, uint32_t* pFileBlockCount)
 {
   if (Ftp.Directory == DIR_ROOT)
     return false;
-  switchFile(Ftp.Directory, fileno);
-  return (Ftp.Directory == DIR_SDCARD1) ? slot_state[0] : slot_state[1];
-}
 
-static uint8_t file_seek(uint8_t fno, uint32_t offset, uint32_t* pFileSize)
-{
-  uint32_t FileSize;
-  uint8_t slot = (unit >> 7);
+  request.sdslot  = Ftp.Directory;
+  request.filenum = fileno;
+  CHECK_MEM(1010);
 
-  if (slot_type[slot] == SLOT_TYPE_RAW)
-  {
-    blockloc = fno;
-    blockloc <<= 16;
-    blockloc |= (offset>>9);
-    FileSize = 65535*512; // fixed maximum volume size
-  }
+  if (!vol_open_drive_file())
+    return false;
+
+  uint32_t FileBlockCount = 0;
+  if (slot_type[request.sdslot] == SLOT_TYPE_RAW)
+    FileBlockCount = 65535; // fixed maximum volume size
   else
-  {
-    blockloc = offset;
-    FileSize = f_size(&slotfile); // size of the DOS file
-  }
-  if (pFileSize)
-    *pFileSize = FileSize;
-  return (offset+512 > FileSize);
+    FileBlockCount = (f_size(&current_file) >> 9); // size of the DOS file
+  if (FileBlockCount > 65535)
+    FileBlockCount = 65535;
+  *pFileBlockCount = FileBlockCount;
+
+  return true;
 }
 
-// obtains volume name and size
-uint32_t getProdosVolumeInfo(uint8_t fno, uint8_t* buf, char* pVolName)
+static void file_seek(uint32_t blknum)
 {
-  uint32_t FileSize = 0;
+  request.blk = blknum;
+}
 
+// obtains volume name and block count
+uint32_t getProdosVolumeInfo(uint8_t* ProdosHeader, char* pVolName, uint32_t FileBlocks)
+{
   // read PRODOS volume name from header
-  if ((0==file_seek(fno, PRODOS_VOLUME_HEADER, &FileSize))&&
-      (0==read_block(RD_DISK, buf)))
+  file_seek(PRODOS_VOLUME_HEADER>>9);
+  if (0==vol_read_block(ProdosHeader))
   {
-    uint8_t* ProdosHeader = buf;
     uint8_t len = ProdosHeader[4] ^ 0xf0; // top 4 bits must be set for PRODOS volume name lengths
-    if (len <= 0xf) // valid length field?
-    {          
+    uint16_t ProdosDirLenEntry = *((uint16_t*)&ProdosHeader[0x23]);
+
+    if ((ProdosDirLenEntry == 0x0D27)&& // check entry length/entries per block=$27/$0D
+        (len <= 0xf))                   // valid length field?
+    {
       // write 15 ASCII characters with PRODOS volume name
       if (pVolName)
       {
@@ -320,16 +301,19 @@ uint32_t getProdosVolumeInfo(uint8_t fno, uint8_t* buf, char* pVolName)
       }
 
       // get PRODOS volume size
-      uint32_t ProdosSize = ProdosHeader[0x2A];
-      ProdosSize <<= 8;
-      ProdosSize |= ProdosHeader[0x29];
-      ProdosSize <<= 9; // x512 bytes per block
+      uint16_t ProdosBlocks = ProdosHeader[0x2A];
+      ProdosBlocks <<= 8;
+      ProdosBlocks |= ProdosHeader[0x29];
       // report PRODOS volume size (unless physical block device file is smaller)
-      if (ProdosSize < FileSize)
-        FileSize = ProdosSize;
+      if (ProdosBlocks < FileBlocks)
+        FileBlocks = ProdosBlocks;
     }
   }
-  return FileSize;
+  else
+  if ((pVolName)&&(slot_type[request.sdslot] == SLOT_TYPE_FAT))
+    pVolName[0] = 0; // FAT file is unreadable/corrupt
+
+  return FileBlocks;
 }
 
 void ftpHandleDirectory(char* buf)
@@ -342,7 +326,7 @@ void ftpHandleDirectory(char* buf)
     uint8_t pos = 0;
     for (uint8_t slot=0;slot<2;slot++)
     {
-      if (slot_type[slot] != SLOT_TYPE_UNKNOWN)
+      if (slot_type[slot] > SLOT_TYPE_UNKNOWN)
       {
         if (slot_type[slot] == SLOT_TYPE_RAW)
         {
@@ -362,26 +346,30 @@ void ftpHandleDirectory(char* buf)
     // iterate over possible file names: BLKDEVXX.PO
     for (uint8_t fno=0;fno<FTP_MAX_BLKDEV_FILES;fno++)
     {
-      if (ftpSelectFile(fno))
+      uint32_t FileBlocks;
+      if (ftpSelectFile(fno, &FileBlocks))
       {
         // read PRODOS volume name from header
         char VolName[16];
         for (uint8_t i=0;i<16;i++) VolName[i] = ' ';
-        uint32_t FileSize = getProdosVolumeInfo(fno, (uint8_t*) buf, VolName);
+        FileBlocks = getProdosVolumeInfo((uint8_t*) buf, VolName, FileBlocks);
 
-        strReadProgMem(buf, FILE_TEMPLATE);
+        if (VolName[0])
+        {
+          strReadProgMem(buf, FILE_TEMPLATE);
 
-        buf[FILE_TEMPLATE_LENGTH-7] = hex_digit(fno>>4);
-        buf[FILE_TEMPLATE_LENGTH-6] = hex_digit(fno);
+          buf[FILE_TEMPLATE_LENGTH-7] = hex_digit(fno>>4);
+          buf[FILE_TEMPLATE_LENGTH-6] = hex_digit(fno);
 
-        // update volume name
-        memcpy(&buf[21], VolName, 15);
+          // update volume name
+          memcpy(&buf[21], VolName, 15);
 
-        // update file size
-        strPrintInt(&buf[37], FileSize, 10000000, ' ');
+          // update file size
+          strPrintInt(&buf[37], FileBlocks<<9, 10000000, ' ');
 
-        // send directory entry
-        FtpDataClient.write(buf, FILE_TEMPLATE_LENGTH);
+          // send directory entry
+          FtpDataClient.write(buf, FILE_TEMPLATE_LENGTH);
+        }
       }
     }
   }
@@ -390,39 +378,31 @@ void ftpHandleDirectory(char* buf)
 // receive or send file data: return FTP reply code
 uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
 {
-  if (!ftpSelectFile(fileno))
+  uint32_t FileBlocks;
+  if (!ftpSelectFile(fileno, &FileBlocks))
   {
     FTP_DEBUG_PRINTLN(F("nofile"));
     return 550;
   }
 
-  // obtain ProDOS file size
-  uint32_t ProDOSFileSize = getProdosVolumeInfo(fileno, (uint8_t*) buf, NULL);
-
-  uint32_t foffset = 0;
+  uint32_t blknum = 0;
   if (Read)
   {
+    // obtain ProDOS file size for reading
+    FileBlocks = getProdosVolumeInfo((uint8_t*) buf, NULL, FileBlocks);
     // read from disk and send to remote
-    UINT br=1;
     // we only send the data for the ProDOS drive - the physical BLKDEVxx.PO file may be larger...
-    while ((br > 0)&&(ProDOSFileSize > 0))
+    while (blknum < FileBlocks)
     {
-      if ((0==file_seek(fileno, foffset, NULL))&&
-          (0==read_block(RD_DISK, buf)))
+      file_seek(blknum);
+      if (vol_read_block(buf) != PRODOS_OK)
+        return 552;
+      blknum++;
+      CHECK_MEM(1020);
+      if (FtpDataClient.write(buf, 512) != 512)
       {
-        br = 512;
-        foffset += 512;
-        CHECK_MEM(1020);
-        if (br > ProDOSFileSize)
-          br = ProDOSFileSize;
-        if (FtpDataClient.write(buf, br) != br)
-        {
-          return 426; // failed, connection aborted...
-        }
-        ProDOSFileSize -= br;
+        return 426; // failed, connection aborted...
       }
-      else
-        br=0;
     }
   }
   else
@@ -465,13 +445,14 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
           if (BufOffset >= FTP_BUF_SIZE)
           {
             // write block to disk
-            if ((0 != file_seek(fileno, foffset, NULL))||
-                (0 != write_block(buf)))
+            file_seek(blknum);
+            if ((blknum >= FileBlocks)||
+                (vol_write_block(buf) != PRODOS_OK))
             {
               FTP_DEBUG_PRINTLN(F("badwr"));
               return 552;
             }
-            foffset += 512;
+            blknum++;
             BufOffset = 0;
           }
         }
@@ -484,8 +465,9 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
     }
     if (BufOffset>0)
     {
-      if ((0 != file_seek(fileno, foffset, NULL))||
-          (0 != write_block(buf)))
+      file_seek(blknum);
+      if ((blknum >= FileBlocks)||
+          (vol_write_block(buf) != PRODOS_OK))
       {
         return 552;
       }
@@ -706,9 +688,6 @@ void loopTinyFtp(void)
       {
         FTP_DEBUG_PRINTLN(F("FTP con"));
         FtpState  = FTP_CONNECTED;
-        // remember current Apple II volume configuration
-        Ftp._file[0] = slot_fileno[0];
-        Ftp._file[1] = slot_fileno[1];
         // FTP welcome
         ftpSendReply(buf, 220);
         // expect new command
@@ -727,10 +706,6 @@ void loopTinyFtp(void)
         delay(10);
         FtpCmdClient.stop();
         FtpState = FTP_INITIALIZED;
-        // select original Apple II volumes (just as if nothing happened...)
-        slot_fileno[0] = Ftp._file[0];
-        slot_fileno[1] = Ftp._file[1];
-        switchFile(0x0, slot_fileno[0]);
       }
       else
       if (FtpCmdClient.available())

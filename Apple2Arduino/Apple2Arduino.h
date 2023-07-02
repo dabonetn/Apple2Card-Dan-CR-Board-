@@ -25,26 +25,7 @@
 #include "ff.h"
 #include "config.h"
 
-#define SLOT_STATE_NODEV    0
-#define SLOT_STATE_BLOCKDEV 1
-#define SLOT_STATE_WIDEDEV  2
-#define SLOT_STATE_FILEDEV  3
-
-#define SLOT_TYPE_UNKNOWN   0
-#define SLOT_TYPE_FAT       1
-#define SLOT_TYPE_RAW       2
-
-#define RD_DISK             0 // always read disk
-#define RD_FAILSAFE         1 // read disk or boot block, if volume/disk is missing
-#define RD_BOOT_BLOCK       2 // always read boot block
-
 extern "C" {
-  void unmount_drive(void);
-  void initialize_drive(void);
-  uint8_t hex_digit(uint8_t ch);
-  uint8_t check_unit_present(void);
-  uint8_t read_block(uint8_t rdtype, uint8_t* buf);
-  uint8_t write_block(uint8_t* buf);
 #ifdef USE_MEM_CHECK
   void check_memory(int id);
 #endif
@@ -61,9 +42,3 @@ extern uint8_t DEBUG_data[DEBUG_BYTES];
   #define CHECK_MEM(id) {}
 #endif
 
-extern uint8_t  unit;
-extern uint32_t blockloc;
-extern FIL      slotfile;
-extern uint8_t  slot_fileno[2];
-extern uint8_t  slot_state[2];
-extern uint8_t  slot_type[2];

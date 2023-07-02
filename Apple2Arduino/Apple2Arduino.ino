@@ -36,6 +36,7 @@
 #include "pindefs.h"
 #include "ttftp.h"
 #include "config.h"
+#include "dan2volumes.h"
 
 /*************************************************/
 // => See DAN2config.h for configuration options!
@@ -74,6 +75,10 @@
 #endif
 #endif
 
+#define RD_DISK             0 // always read disk
+#define RD_FAILSAFE         1 // read disk or boot block, if volume/disk is missing
+#define RD_BOOT_BLOCK       2 // always read boot block
+
 #define EEPROM_INIT    0
 #define EEPROM_SLOT0   1
 #define EEPROM_SLOT1   2
@@ -86,18 +91,12 @@ uint8_t ethernet_initialized = 0;
 Wiznet5500 eth(8);
 #endif
 
-FATFS   fs;
-FIL     slotfile;
-uint8_t last_drive = 255;
-
-uint8_t slot_state[2] = {SLOT_STATE_NODEV,  SLOT_STATE_NODEV};
-uint8_t slot_type[2]  = {SLOT_TYPE_UNKNOWN, SLOT_TYPE_UNKNOWN}; // RAW vs FAT FS detection
-uint8_t slot_fileno[2];
-uint8_t slot_fileno_eeprom[2];
+uint8_t drive_fileno[2];
+uint8_t drive_fileno_eeprom[2];
 uint8_t a2slot;
 
-static char blockvol[] = "X:";
-static char blockdev_filename[] = "X:BLKDEVXX.PO";
+uint8_t  unit;
+static uint16_t bufaddr; // buffer address in Apple II memory
 
 #ifdef DEBUG_BYTES
 uint8_t DEBUG_counter = 0;
@@ -129,15 +128,23 @@ void debug_log(uint8_t value)
 
 void read_eeprom(void)
 {
-  slot_fileno[0] = slot_fileno[1] = 1;
-  a2slot = 0x70;
+  drive_fileno[0] = drive_fileno[1] = 0; // SD1 volume 0 / SD2 volume 0
+  a2slot = 0x7;
 
   uint8_t init_value = EEPROM.read(EEPROM_INIT);
   if (init_value != 255)
   {
-    slot_fileno[0] = EEPROM.read(EEPROM_SLOT0);
-    slot_fileno[1] = EEPROM.read(EEPROM_SLOT1);
-    a2slot         = EEPROM.read(EEPROM_A2SLOT) & 0x70;
+    drive_fileno[0] = EEPROM.read(EEPROM_SLOT0);
+    drive_fileno[1] = EEPROM.read(EEPROM_SLOT1);
+    // take care of older EPROM contents
+    if ((drive_fileno[0] == 255)||(drive_fileno[1] == 255))
+    {
+       // former "wide mode"
+       drive_fileno[0] = 0x00; // SD1, volume 0
+       drive_fileno[1] = 0x88; // SD1, volume 8
+    }
+
+    a2slot          = EEPROM.read(EEPROM_A2SLOT) & 0x7;
 
 #ifdef USE_FTP
     if (init_value >= 1) // newer version in EEPROM
@@ -149,22 +156,22 @@ void read_eeprom(void)
 #endif
   }
 
-  slot_fileno_eeprom[0] = slot_fileno[0];
-  slot_fileno_eeprom[1] = slot_fileno[1];
+  drive_fileno_eeprom[0] = drive_fileno[0];
+  drive_fileno_eeprom[1] = drive_fileno[1];
 }
 
 void write_eeprom(void)
 {
-  if (EEPROM.read(EEPROM_SLOT0) != slot_fileno[0])
-    EEPROM.write(EEPROM_SLOT0, slot_fileno[0]);
-  if (EEPROM.read(EEPROM_SLOT1) != slot_fileno[1])
-    EEPROM.write(EEPROM_SLOT1, slot_fileno[1]);
+  if (EEPROM.read(EEPROM_SLOT0) != drive_fileno[0])
+    EEPROM.write(EEPROM_SLOT0, drive_fileno[0]);
+  if (EEPROM.read(EEPROM_SLOT1) != drive_fileno[1])
+    EEPROM.write(EEPROM_SLOT1, drive_fileno[1]);
   if (EEPROM.read(EEPROM_A2SLOT) != a2slot)
     EEPROM.write(EEPROM_A2SLOT, a2slot);
   if (EEPROM.read(EEPROM_INIT) == 255)
     EEPROM.write(EEPROM_INIT, 0);
-  slot_fileno_eeprom[0] = slot_fileno[0];
-  slot_fileno_eeprom[1] = slot_fileno[1];
+  drive_fileno_eeprom[0] = drive_fileno[0];
+  drive_fileno_eeprom[1] = drive_fileno[1];
 }
 
 #ifdef USE_FTP
@@ -225,11 +232,6 @@ uint8_t read_dataport(void)
   return byt;
 }
 
-uint8_t  unit;
-uint32_t blockloc;
-static uint16_t buf;
-static uint16_t blk;
-
 void get_unit_buf_blk(void)
 {
   unit = read_dataport();
@@ -237,270 +239,110 @@ void get_unit_buf_blk(void)
   SERIALPORT()->print("0000 unit=");
   SERIALPORT()->println(unit, HEX);
 #endif
-  buf = read_dataport();
-  buf |= (((uint16_t)read_dataport()) << 8);
+  bufaddr = read_dataport();
+  bufaddr |= (((uint16_t)read_dataport()) << 8);
 #ifdef DEBUG_SERIAL
   SERIALPORT()->print("0000 buf=");
-  SERIALPORT()->println(buf, HEX);
+  SERIALPORT()->println(bufaddr, HEX);
 #endif
-  blk = read_dataport();
-  blk |= (((uint16_t)read_dataport()) << 8);
+  request.blk = read_dataport();
+  request.blk |= (((uint16_t)read_dataport()) << 8);
 #ifdef DEBUG_SERIAL
   SERIALPORT()->print("0000 blk=");
-  SERIALPORT()->println(blk, HEX);
+  SERIALPORT()->println(request.blk, HEX);
 #endif
 }
 
-uint8_t hex_digit(uint8_t ch)
+// take care of special mapping in "ALLVOLS" mode
+void calculate_allvols()
 {
-  return (ch < 10) ? (ch + '0') : (ch - 10 + 'A');
-}
+  uint8_t drive  = (unit >> 7); // access drive 0 or drive 1?
 
-void set_blockdev_filename(uint8_t filesystem)
-{
-  uint8_t fileno       = slot_fileno[filesystem];
-  if (fileno == 255)
-    fileno = 0;
-  blockdev_filename[0] = hex_digit(filesystem);
-  blockdev_filename[8] = hex_digit(fileno >> 4);
-  blockdev_filename[9] = hex_digit(fileno & 0x0F);
-}
+  uint8_t drive1fno = drive_fileno[0];
+  uint8_t drive2fno = drive_fileno[1]^0x80;
 
-uint8_t check_change_filesystem(uint8_t current_filesystem)
-{
-  if (last_drive == current_filesystem)
-    return 1;
-
-  if (last_drive < 2)
+  if (drive1fno == drive2fno)
   {
-    f_close(&slotfile);
-    blockvol[0] = '0'+last_drive;
-    f_unmount(blockvol);
-  }
-  last_drive = 255;
-  if (current_filesystem < 2)
-  {
-    blockvol[0] = '0'+current_filesystem;
-    if (f_mount(&fs, blockvol, 1) != FR_OK)
-      return 0;
-    set_blockdev_filename(current_filesystem);
-    if (f_open(&slotfile, blockdev_filename, FA_READ | FA_WRITE) != FR_OK)
-    {
-      f_unmount(blockvol);
-      return 0;
-    }
-  }
-  last_drive = current_filesystem;
-  return 1;
-}
-
-void initialize_drive(void)
-{
-  // make sure everything is unmounted first
-  check_change_filesystem(255);
-
-  uint8_t slot = (unit >> 7);
-
-  // file system type known yet?
-  if (slot_type[slot] == SLOT_TYPE_UNKNOWN)
-  {
-    blockvol[0] = '0'+slot;
-    if (f_mount(&fs, blockvol, 1) == FR_OK) // immediate mount
-    {
-      slot_type[slot] = SLOT_TYPE_FAT;  // FAT FS detected
-      f_unmount(blockvol);
-    }
-    else
-    {
-      // It's not a FAT disk. But is it raw/ProDOS disk?
-      fs.winsect = -1; // invalidate sector window
-      if (disk_read(slot, fs.win, 2, 1) != 0) // read sector 2 with ProDOS header of volume 1
-      {
-        // no disk or invalid format
-        return;
-      }
-
-      if ((fs.win[4]<=0xf0)&& // check key block (with valid volume name)
-          (0x0D27 != *((uint16_t*)&fs.win[0x23]))) // check entry length/entries per block=$27/$0D
-      {
-        return;
-      }
-
-      // seems legit: raw block disk with ProDOS header in volume 1
-      slot_type[slot] = SLOT_TYPE_RAW;
-    }
-  }
-
-  if (slot_state[slot] != SLOT_STATE_NODEV)
-    return;
-
-  if (slot_type[slot] == SLOT_TYPE_FAT)
-  {
-    if (check_change_filesystem(slot))
-      slot_state[slot] = SLOT_STATE_FILEDEV;
+    // multiple drive access disabled when both are configured to the same volume
+    request.filenum = request.sdslot = 0xff;
     return;
   }
 
-  // raw block disk
+  request.filenum  = ((drive==0) ? drive1fno : drive2fno) & 0x80; // map to the SD card to SD card of drive 1 or drive 2
+  request.filenum |= ((unit>>4) & 0x7); // requested file number according to request slot
 
-#ifdef USE_WIDEDEV
-  if (slot_fileno[0] == 255)
+  if ((drive==1)&&(((drive1fno ^ drive2fno)&0x80) == 0))
   {
-    if (slot_state[slot^1] == SLOT_STATE_NODEV)
-    {
-      if (disk_initialize(0) == 0)
-        slot_state[0] = slot_state[1] = SLOT_STATE_WIDEDEV;
-    }
+    // D2 requested, and both drives are configured to the same SD card = "wide access"
+    request.filenum |= 0x8;
+  }
+
+  // now some checks to avoid mapping the same drive multiple times
+  if ((request.filenum == drive1fno)||(request.filenum == drive2fno))
+  {
+    request.filenum &= 0x88; // try volume 0 or 8 instead (on current SDcard)
+  }
+
+  if ((request.filenum == drive1fno)||(request.filenum == drive2fno))
+  {
+    // still in conflict? Then don't map any drive for this request...
+    request.filenum = request.sdslot = 0xff;
     return;
   }
-#endif
 
-#ifdef USE_RAW_BLOCKDEV
-  if (disk_initialize(slot) == 0)
-    slot_state[slot] = SLOT_STATE_BLOCKDEV;
-#endif
+  // success: properly decode SDcard and file
+  request.sdslot   = (request.filenum >> 7) & 0x1;
+  request.filenum &= 0xF;
 }
 
-void unmount_drive(void)
+// calculate: sdslot and filenum
+void calculate_sd_filenum()
 {
-  uint8_t slot = (unit >> 7);
-  if (SLOT_STATE_FILEDEV == slot_state[slot])
-      check_change_filesystem(255);
-  slot_state[slot] = SLOT_STATE_NODEV;
-}
+  uint8_t drive  = (unit >> 7); // access drive 0 or drive 1?
 
-void init_all_drives(void)
-{
-  unit = 0;
-  initialize_drive();
-  unit = 0x80;
-  initialize_drive();
-}
+  if ((drive == 1)&&(drive_fileno[0] == (drive_fileno[1]^0x80)))
+  {
+    // multiple drive access disabled when both are configured to the same volume
+    request.filenum = request.sdslot = 0xff;
+    return;
+  }
 
-// returns error code, 0=OK, 0x28=ERROR
-uint8_t check_unit_status(void)
-{
-  uint8_t slot = (unit >> 7);
-  return (slot_state[slot] != SLOT_STATE_NODEV) ? 0 : 0x28;
+  request.filenum = drive_fileno[drive];            // which file to access on this drive by default?
+  request.sdslot  = (request.filenum >> 7) ^ drive; // on SD slot 0 or 1?
+  request.filenum &= 0x7f;                          // mask file number (get rid of slot selection bit)
+
+  // check if the request was received with the "normal" slot number (otherwise the "ALLVOLS" magic is active)
+  uint8_t current_slot = (unit >> 4) & 7;
+  if (current_slot != a2slot)
+    calculate_allvols();
 }
 
 uint8_t do_status(void)
 {
   get_unit_buf_blk();
-
-  uint8_t returncode = check_unit_status();
+  calculate_sd_filenum();
+  uint8_t returncode = (vol_open_drive_file() ? PRODOS_OK : PRODOS_IO_ERR);
   write_dataport(returncode);
 
   return returncode;
 }
 
-void calculate_block_location()
-{
-#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
-  uint8_t slot = (unit >> 7);
-  if (slot_type[slot] == SLOT_TYPE_RAW)
-  {
-    uint8_t unitshift = unit;
-    if (slot_state[0] == SLOT_STATE_WIDEDEV)
-    {
-      unitshift &= 0xF0;
-    }
-    else
-    {
-      uint8_t fno = slot_fileno[slot] << 4;
-      unitshift &= 0x70;
-      if (unitshift == a2slot)
-      {
-        unitshift = fno;
-      }
-      else
-      if (unitshift == fno)
-      {
-        unitshift |= 0x80; // do not allow a single volume to be mapped multiple times
-      }
-    }
-
-    blockloc = ((uint32_t)blk) | (((uint32_t)(unitshift)) << 12);
-    blockloc &= 0x001FFFFF;
-  }
-  else
-#endif
-  {
-      blockloc = ((uint32_t)blk) << 9; // file offset in bytes
-  }
-}
-
 #if BOOTPG>1
 void read_bootblock(uint8_t* buf)
 {
-  blk &= 0xff;
-  while (blk >= NUMBER_BOOTBLOCKS)
-    blk -= NUMBER_BOOTBLOCKS;
+  a2slot = (unit >> 4) & 0x7;
 
-  blk <<= 9;
+  request.blk &= 0xff;
+  while (request.blk >= NUMBER_BOOTBLOCKS)
+    request.blk -= NUMBER_BOOTBLOCKS;
+
+  uint32_t blkofs = request.blk << 9;
   for (uint16_t i = 0; i < 512; i++)
   {
-    buf[i] = pgm_read_byte(&bootblocks[blk + i]);
+    buf[i] = pgm_read_byte(&bootblocks[blkofs + i]);
   }
 }
 #endif
-
-// read a block from disk or from the boot program area, returns 0=OK
-uint8_t read_block(uint8_t rdtype, uint8_t* buf)
-{
-  uint8_t returncode = check_unit_status();
-
-#if BOOTPG>1
-  if ( (rdtype==RD_BOOT_BLOCK)||
-      ((rdtype==RD_FAILSAFE)&&(returncode != 0)))
-  {
-    // initial ROM bootloader loading: transmit bootpg if volume is missing
-    read_bootblock(buf);
-    return 0;
-  }
-#endif
-
-  if (returncode != 0)
-    return returncode;
-
-  uint8_t slot = (unit >> 7);
-
-#ifdef USE_WIDEDEV
-  if (slot_state[0] == SLOT_STATE_WIDEDEV)
-  {
-    slot = 0;
-  }
-#endif
-
-#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
-  if (slot_type[slot] == SLOT_TYPE_RAW)
-  {
-      if (disk_read(slot, buf, blockloc, 1) != 0)
-      {
-        return 0x27;
-      }
-  }
-  else
-#endif
-  {
-    UINT br;
-    if (!check_change_filesystem(slot))
-    {
-      return 0x27;
-    }
-    // only seek when necessary
-    if ((f_tell(&slotfile) != blockloc)&&(f_lseek(&slotfile, blockloc) != FR_OK))
-    {
-        return 0x27;
-    }
-    if ((f_read(&slotfile, buf, 512, &br) != FR_OK) ||
-        (br != 512))
-    {
-      return 0x27;
-    }
-  }
-  return 0;
-}
 
 void do_read(uint8_t rdtype)
 {
@@ -508,8 +350,25 @@ void do_read(uint8_t rdtype)
 
   get_unit_buf_blk();
 
-  calculate_block_location();
-  uint8_t returncode = read_block(rdtype, buf);
+  uint8_t returncode = 0;
+
+#if BOOTPG>1
+  if (rdtype != RD_BOOT_BLOCK)
+#endif
+  {
+    calculate_sd_filenum();
+    returncode = vol_read_block(buf);
+  }
+
+#if BOOTPG>1
+  if ( (rdtype==RD_BOOT_BLOCK)||
+      ((rdtype==RD_FAILSAFE)&&(returncode != 0)))
+  {
+    // transmit bootpg if requested or volume is missing
+    read_bootblock(buf);
+    returncode = 0;
+  }
+#endif
 
   write_dataport(returncode);
 
@@ -527,46 +386,6 @@ void do_read(uint8_t rdtype)
   }
 }
 
-// write a block to disk: returns 0=OK
-uint8_t write_block(uint8_t* buf)
-{
-  UINT br;
-  uint8_t slot = (unit >> 7);
-
-#ifdef USE_WIDEDEV
-  if (slot_state[0] == SLOT_STATE_WIDEDEV)
-  {
-    slot = 0;
-  }
-#endif
-
-#if (defined USE_WIDEDEV)||(defined USE_RAW_BLOCKDEV)
-  if (slot_type[slot] == SLOT_TYPE_RAW)
-  {
-    if (disk_write(slot, buf, blockloc, 1) != 0)
-      return 1;
-  }
-  else
-#endif
-  {
-    if (!check_change_filesystem(slot))
-      return 1;
-
-    // do not allow to write beyond the current file size
-    if (blockloc+512 > f_size(&slotfile))
-      return 1;
-
-    // only seek when necessary
-    if ((f_tell(&slotfile) != blockloc)&&(f_lseek(&slotfile, blockloc) != FR_OK))
-      return 1;
-
-    if ((f_write(&slotfile, buf, 512, &br) != FR_OK) ||
-        (br != 512))
-      return 1;
-  }
-  return 0;
-}
-
 void do_write(void)
 {
   uint8_t returncode = do_status();
@@ -582,8 +401,8 @@ void do_write(void)
     ACK_HIGH();
   }
 
-  calculate_block_location();
-  write_block(buf);
+  calculate_sd_filenum();
+  vol_write_block(buf);
 }
 
 void do_format(void)
@@ -607,30 +426,29 @@ void write_zeros(uint16_t num)
 
 void do_set_volume(uint8_t cmd)
 {
-  // cmd=4: configure slots 0+1 in eprom, single byte response
-  // cmd=6: temporarily select slots 0+1, use 512byte response
-  // cmd=7: configure slots 0+1 in eprom, use 512byte response
-  // cmd=8: temporarily select slot 0 only, single byte response
+  // cmd=4: permanently selects drives 0+1, single byte response (used by eprom+bootpg for volume selection)
+  // cmd=6: temporarily selects drives 0+1, 512byte response (used by bootpg for volume preview)
+  // cmd=7: permanently selects drives 0+1, 512byte response (used by bootpg for volume selection)
+  // cmd=8: permanently selects drive 0 only, single byte response (used by eprom for quick access keys)
   get_unit_buf_blk();
   write_dataport(0x00);
 
-  a2slot = unit & 0x70;
+  a2slot = (unit >> 4) & 0x7;
 
-  unit = 0x80;
-  unmount_drive();
-
-  unit = 0x0;
-  unmount_drive();
-
-  slot_fileno[0] = blk & 0xFF;
+  drive_fileno[0] = request.blk & 0xFF;
 
   if (cmd != 8)
-    slot_fileno[1] = (blk >> 8);
+    drive_fileno[1] = (request.blk >> 8);
 
-  if ((cmd != 6)&&(cmd != 8)) // don't update EEPROM for temporary selections
+  if ((drive_fileno[0] == 255)||(drive_fileno[1] == 255))
+  {
+    // former "wide mode"
+    drive_fileno[0] = 0x00; // select volume 0 on SD1
+    drive_fileno[1] = 0x88; // select volume 8 on SD1
+  }
+
+  if (cmd != 6) // don't update EEPROM for temporary selection
     write_eeprom();
-
-  init_all_drives();
 
   if ((cmd != 4)&&(cmd != 8)) // dummy 512 byte block response for commands 6+7
     write_zeros(512);
@@ -645,14 +463,14 @@ void do_get_volume(uint8_t cmd)
   if (cmd == 5)
   {
     // return persistent configuration (this is what the config utilities want to know)
-    write_dataport(slot_fileno_eeprom[0]);
-    write_dataport(slot_fileno_eeprom[1]);
+    write_dataport(drive_fileno_eeprom[0]);
+    write_dataport(drive_fileno_eeprom[1]);
   }
   else
   {
     // return current (temporary) configuration
-    write_dataport(slot_fileno[0]);
-    write_dataport(slot_fileno[1]);
+    write_dataport(drive_fileno[0]);
+    write_dataport(drive_fileno[1]);
   }
   write_zeros(510);
 }
@@ -746,11 +564,11 @@ void do_set_ip_config(void)
   get_unit_buf_blk();
 
   // use bytes from standard parameters to pass the new IP address (and last byte of Mac address)
-  FtpMacIpPortData[5] = unit;       // least significant MAC address byte
-  FtpMacIpPortData[6] = buf & 0xff; // IP address byte 1
-  FtpMacIpPortData[7] = buf >> 8;   // IP address byte 2
-  FtpMacIpPortData[8] = blk & 0xff; // IP address byte 3
-  FtpMacIpPortData[9] = blk >> 8;   // IP address byte 4
+  FtpMacIpPortData[5] = unit;              // least significant MAC address byte
+  FtpMacIpPortData[6] = bufaddr & 0xff;    // IP address byte 1
+  FtpMacIpPortData[7] = bufaddr >> 8;      // IP address byte 2
+  FtpMacIpPortData[8] = request.blk & 0xff; // IP address byte 3
+  FtpMacIpPortData[9] = request.blk >> 8;   // IP address byte 4
   write_eeprom_ip();
 
   // success: return 1(!=0) anyway. Sneaky trick - so we can reuse the routine from ROM and prevent it from reading further bytes
@@ -861,18 +679,13 @@ void setup()
   setup_serial();
   read_eeprom();
 
-  init_all_drives();
+  vol_check_sdslot_type(SDSLOT2);
+  vol_check_sdslot_type(SDSLOT1);
 
 #ifdef DEBUG_SERIAL
   SERIALPORT()->println("0000");
-  SERIALPORT()->print("d=");
-  SERIALPORT()->print(sizeof(fs));
   SERIALPORT()->print(" f=");
   SERIALPORT()->print(freeRam());
-  SERIALPORT()->print(" s=");
-  SERIALPORT()->print(slot_state[0]);
-  SERIALPORT()->print(" ");
-  SERIALPORT()->println(slot_state[1]);
   SERIALPORT()->flush();
 #endif
 

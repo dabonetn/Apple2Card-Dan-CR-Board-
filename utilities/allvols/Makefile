@@ -1,4 +1,4 @@
-# firmware makefile
+# allvols makefile
 # Thorsten Brehm, 2023
 
 SOURCE    = $(wildcard *.asm)
@@ -14,7 +14,7 @@ bin/%.bin: bin/%.o
 	@ld65 -t none $< -o $@
 	@echo ""
 
-bin/%.o: %.asm Makefile bin
+bin/%.o: %.asm Makefile
 	@echo "Assembling $<..."
 	@ca65 $< -o $@ --listing bin/$(<:.asm=.lst) --list-bytes 255
 
