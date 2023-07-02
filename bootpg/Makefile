@@ -39,7 +39,7 @@ bin:
 
 clean:
 	@echo "Wiping generated files..."
-	@rm bin/*
+	@rm -f bin/*
 
 check:
 	@(python3 -V > /dev/null 2> /dev/null) || (echo "ERROR: Python3 installation is required to convert binaries!"; exit 1)
