@@ -8,7 +8,6 @@ BOOTLOADER_BIN = $(addprefix bin/,$(BOOTLOADER:.asm=.bin))
 # include file with firmware version
 include ../version.mk
 
-FW_VERSION := $(subst ",, $(FW_VERSION))
 FW_MAJOR := $(word 1,$(subst ., ,$(FW_VERSION)))
 FW_MINOR := $(word 2,$(subst ., ,$(FW_VERSION)))
 FW_MAINT := $(word 3,$(subst ., ,$(FW_VERSION)))

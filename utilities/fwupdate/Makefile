@@ -19,7 +19,6 @@
 #  3. This notice may not be removed or altered from any source distribution.
 
 include ../../version.mk
-FW_VERSION := $(subst ",,$(FW_VERSION))
 
 ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
 

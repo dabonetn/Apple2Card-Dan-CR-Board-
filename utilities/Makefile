@@ -22,14 +22,12 @@
 AC := java -jar ../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
 
 include ../version.mk
-FW_VERSION := $(subst ",,$(FW_VERSION))
-
-# target disk image
-DISK_IMAGE_NAME := bin/DANIIUTIL.$(FW_VERSION)
 
 # for direct FTP download: adapt to your needs
 DAN2_FTP_IP := 192.168.4.65
 DAN2_VOL_IMAGE := /sd1/BLKDEV0D.PO
+
+DSK_FILE := bin/$(DISK_NAME).dsk
 
 TARGETS := all clean
 
@@ -38,7 +36,7 @@ all: bin
 	make -C fwupdate $@
 	make -C ipconfig $@
 	make -C allvols $@
-	make $(DISK_IMAGE_NAME).po
+	make bin/$(DISK_NAME).po
 
 clean:
 	make -C eeprom $@
@@ -51,32 +49,32 @@ bin:
 	- mkdir bin
 
 # build ProDOS disk image
-$(DISK_IMAGE_NAME).po: Makefile ../version.mk fwupdate/bin/FWUPDATE.SYSTEM eeprom/bin/EEPROM.PROG.SYS allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM
+bin/$(DISK_NAME).po: Makefile ../version.mk fwupdate/bin/FWUPDATE.SYSTEM eeprom/bin/EEPROM.PROG.SYS allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM
 	@echo "Building volume $@"
-	@cp ipconfig/ProDOS_312.dsk $(DISK_IMAGE_NAME).dsk
-	@$(AC) -g $(DISK_IMAGE_NAME).dsk MANAGER.SYS bin/MANAGER.SYS
-	@$(AC) -g $(DISK_IMAGE_NAME).dsk FORMAT.SYS bin/FORMAT.SYS
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk MANAGER.SYS
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk FORMAT.SYS
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk PRO.DATE
-	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANIIUTIL.$(FW_VERSION)
-	@cat bin/MANAGER.SYS | $(AC) -p $(DISK_IMAGE_NAME).dsk MANAGER.SYS sys
-	@cat bin/FORMAT.SYS | $(AC) -p $(DISK_IMAGE_NAME).dsk FORMAT.SYS sys
-	@cat fwupdate/bin/FWUPDATE.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk FWUPDATE.SYSTEM sys
-	@cat eeprom/bin/EEPROM.PROG.SYS   | $(AC) -p $(DISK_IMAGE_NAME).dsk EEPROM.SYS sys
-	@cat allvols/bin/ALLVOLS.SYSTEM   | $(AC) -p $(DISK_IMAGE_NAME).dsk ALLVOLS.SYS sys
-	@cat ipconfig/bin/IPCONFIG.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk IPCONFIG.SYS sys
+	@cp ipconfig/ProDOS_312.dsk $(DSK_FILE)
+	@$(AC) -g $(DSK_FILE) MANAGER.SYS bin/MANAGER.SYS
+	@$(AC) -g $(DSK_FILE) FORMAT.SYS  bin/FORMAT.SYS
+	@$(AC) -d $(DSK_FILE) MANAGER.SYS
+	@$(AC) -d $(DSK_FILE) FORMAT.SYS
+	@$(AC) -d $(DSK_FILE) QUIT.SYSTEM
+	@$(AC) -d $(DSK_FILE) PRO.DATE
+	@$(AC) -n $(DSK_FILE) $(DISK_NAME)
+	@cat bin/MANAGER.SYS              | $(AC) -p $(DSK_FILE) MANAGER.SYS     sys
+	@cat bin/FORMAT.SYS               | $(AC) -p $(DSK_FILE) FORMAT.SYS      sys
+	@cat fwupdate/bin/FWUPDATE.SYSTEM | $(AC) -p $(DSK_FILE) FWUPDATE.SYSTEM sys
+	@cat eeprom/bin/EEPROM.PROG.SYS   | $(AC) -p $(DSK_FILE) EEPROM.SYS      sys
+	@cat allvols/bin/ALLVOLS.SYSTEM   | $(AC) -p $(DSK_FILE) ALLVOLS.SYS     sys
+	@cat ipconfig/bin/IPCONFIG.SYSTEM | $(AC) -p $(DSK_FILE) IPCONFIG.SYS    sys
 	@echo "Converting to ProDOS..."
-	@python3 ipconfig/dsk2po.py $(DISK_IMAGE_NAME).dsk
-	@cp $(DISK_IMAGE_NAME).dsk ../dsk/.
+	@python3 ipconfig/dsk2po.py $(DSK_FILE)
+	@cp $(DSK_FILE) ../dsk/.
 	@cp $@ ../dsk/.
 
-list: $(DISK_IMAGE_NAME).po
-	@$(AC) -l $(DISK_IMAGE_NAME).po
+list: bin/$(DISK_NAME).po
+	@$(AC) -l $<
 
 # for testing: ftp upload of ProDOS image to an DAN][ controller's SD volume
-ftp: $(DISK_IMAGE_NAME).po
+ftp: bin/$(DISK_NAME).po
 	@echo "FTP transfer..."
-	ftp -u apple2@$(DAN2_FTP_IP):$(DAN2_VOL_IMAGE) $(DISK_IMAGE_NAME).po
+	ftp -u apple2@$(DAN2_FTP_IP):$(DAN2_VOL_IMAGE) $<
 
