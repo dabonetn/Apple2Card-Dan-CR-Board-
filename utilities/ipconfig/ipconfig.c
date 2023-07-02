@@ -113,6 +113,7 @@ void showIpMac()
 
 void getSlot(void)
 {
+   printf("PRESS ESC TO ABORT...\n");
    do
    {
         printf("\nCONTROLLER SLOT: #");
@@ -226,6 +227,8 @@ void doConfig(void)
 
 void main(void)
 {
+   int i;
+
    // wipe screen
    clrscr();
 
@@ -237,5 +240,12 @@ void main(void)
    getSlot();
    if (slot<=7)
      doConfig();
+   else
+   {
+     printf("\n\nCONFIGURATION ABORTED!\n");
+     for (i=0;i<7000;i++)
+     {
+     }
+   }
 }
 

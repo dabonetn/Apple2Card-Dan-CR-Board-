@@ -21,26 +21,7 @@
 # AppleCommander
 AC := java -jar ../../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
 
-# target disk image
-DISK_IMAGE_NAME := bin/DANII_FTP_IPCONFIG
-
-# for direct FTP download: adapt to your needs
-DAN2_FTP_IP := 192.168.4.65
-DAN2_VOL_IMAGE := /sd1/BLKDEV0E.PO
-
-all: $(DISK_IMAGE_NAME).po
-
-# build ProDOS disk image
-$(DISK_IMAGE_NAME).po: bin/IPCONFIG.SYSTEM
-	@echo "Building volume DANII.IPCONFIG"
-	@cp ProDOS_312.dsk $(DISK_IMAGE_NAME).dsk
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
-	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANII.IPCONFIG
-	@cat bin/IPCONFIG.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk IPCONFIG.SYSTEM sys
-	@echo "Converting to ProDOS..."
-	@python3 dsk2po.py $(DISK_IMAGE_NAME).dsk
-	@cp $(DISK_IMAGE_NAME).dsk ../../dsk/.
-	@cp $@ ../../dsk/.
+all: bin/IPCONFIG.SYSTEM
 
 # build ProDOS executable
 bin/IPCONFIG.SYSTEM: bin/IPCONFIG.o bin/dan2if.o
@@ -61,9 +42,4 @@ bin/dan2if.o: dan2if.asm Makefile
 clean:
 	@echo "Clean up..."
 	@rm -f bin/*
-
-# for testing: ftp upload of ProDOS image to an DAN][ controller's SD volume
-ftp: $(DISK_IMAGE_NAME).po
-	@echo "FTP transfer..."
-	ftp -u apple2@$(DAN2_FTP_IP):$(DAN2_VOL_IMAGE) $(DISK_IMAGE_NAME).po
 

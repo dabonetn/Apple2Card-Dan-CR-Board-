@@ -61,6 +61,7 @@ void main(void)
 {
   char c=0;
   char slot=0;
+  int i;
   uint8_t* p = (uint8_t*) 0x800;
 
   // wipe screen
@@ -72,11 +73,16 @@ void main(void)
   printf("         FIRMWARE UPDATER " FW_VERSION "        \n");
   norm();
 
+  printf("\nPRESS ESC TO ABORT...\n");
   do
   {
     printf("\nCONTROLLER SLOT: #");
     slot = getc(stdin);
     printf("\n");
+
+    if (slot == 27)
+      break;
+    else
     if ((slot>='1')&&(slot<='7'))
     {
       slot -= '0';
@@ -93,21 +99,26 @@ void main(void)
     }
   } while (slot == 0);
 
-  p[0x20] = slot;
+  if (slot <= 7)
+  {
+    p[0x20] = slot;
 
-  printf("\n");
-  printf("PRESS\n      ");
-  inverse();
-  printf("<CTRL-RESET>");
-  norm();
-  printf(" TO START UPDATE\n");
-  printf("      OR ANY OTHER KEY TO ABORT.\n");
+    printf("\n");
+    printf("PRESS\n      ");
+    inverse();
+    printf("<CTRL-RESET>");
+    norm();
+    printf(" TO START UPDATE\n");
+    printf("      OR ANY OTHER KEY TO ABORT.\n");
 
-  asm("jsr setFwUpdateHook");   // install warm start vector for FW update
-  getc(stdin);
-  asm("jsr clearWarmStartVec"); // clear warm start vector for FW update
-
+    asm("jsr setFwUpdateHook");   // install warm start vector for FW update
+    getc(stdin);
+    asm("jsr clearWarmStartVec"); // clear warm start vector for FW update
+  }
+  
   printf("\n\nFIRMWARE UPDATE ABORTED!\n");
-  getc(stdin);
+  for (i=0;i<7000;i++)
+  {
+  }
 }
 

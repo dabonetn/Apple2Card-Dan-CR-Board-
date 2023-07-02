@@ -7,8 +7,10 @@ gerber*.zip
 Ignore/
 bootpg/bin
 eprom/bin
-utilities/*/bin/*
+utilities/bin
+utilities/*/bin
 dsk/*
+DANII_Release_v*.zip
 
 # Exclude the "no bootloader" hex file:
 Apple2Arduino/bin/*

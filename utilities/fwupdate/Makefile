@@ -18,38 +18,15 @@
 #     misrepresented as being the original software.
 #  3. This notice may not be removed or altered from any source distribution.
 
-# AppleCommander
-AC := java -jar ../../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
-
 include ../../version.mk
 FW_VERSION := $(subst ",,$(FW_VERSION))
 
-# target disk image
-DISK_IMAGE_NAME := bin/DANII_FW_$(FW_VERSION)
-
-# for direct FTP download: adapt to your needs
-DAN2_FTP_IP := 192.168.4.65
-DAN2_VOL_IMAGE := /sd1/BLKDEV0C.PO
-
 ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
 
-all: $(DISK_IMAGE_NAME).po
-
-# build ProDOS disk image
-$(DISK_IMAGE_NAME).po: bin/FWUPDATE.PRG Makefile ../../version.mk
-	@echo "Building volume $@"
-	@cp ../ipconfig/ProDOS_312.dsk $(DISK_IMAGE_NAME).dsk
-	@$(AC) -d $(DISK_IMAGE_NAME).dsk QUIT.SYSTEM
-	@$(AC) -n $(DISK_IMAGE_NAME).dsk DANII.FW.$(FW_VERSION)
-	@cat bin/FWUPDATE.PRG | $(AC) -p $(DISK_IMAGE_NAME).dsk DAN.FWUP.SYSTEM sys
-	@cat ../eeprom/bin/EEPROM.SYSTEM | $(AC) -p $(DISK_IMAGE_NAME).dsk EEPROM.SYSTEM sys
-	@echo "Converting to ProDOS..."
-	@python3 ../ipconfig/dsk2po.py $(DISK_IMAGE_NAME).dsk
-	@cp $(DISK_IMAGE_NAME).dsk ../../dsk/.
-	@cp $@ ../../dsk/.
+all: bin/FWUPDATE.SYSTEM
 
 # build ProDOS executable
-bin/FWUPDATE.PRG: bin/fwupdate.o bin/dan2stk500.o
+bin/FWUPDATE.SYSTEM: bin/fwupdate.o bin/dan2stk500.o
 	@echo "Linking $@"
 	@ld65 -C apple2-system.cfg  -D __EXEHDR__=0 -vm -m bin/FWUPDATE.list -o $@ bin/fwupdate.o bin/dan2stk500.o apple2.lib
 
@@ -75,9 +52,4 @@ bin:
 clean:
 	@echo "Clean up..."
 	@rm -f bin/*
-
-# for testing: ftp upload of ProDOS image to an DAN][ controller's SD volume
-ftp: $(DISK_IMAGE_NAME).po
-	@echo "FTP transfer..."
-	ftp -u apple2@$(DAN2_FTP_IP):$(DAN2_VOL_IMAGE) $(DISK_IMAGE_NAME).po
 

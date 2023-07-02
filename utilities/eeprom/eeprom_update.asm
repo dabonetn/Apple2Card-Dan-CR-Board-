@@ -296,7 +296,7 @@ outend:
     rts
 
 startmsg:
-    aschi   "FLASH UTILITY"    
+    aschi   "EEPROM UPDATE UTILITY"
 .byte    $8d
     aschi   "SHORT ALL JUMPERS JP2,JP3,JP4,JP6,"
 .byte    $8d
@@ -309,19 +309,19 @@ startmsg:
 
 flashingnow:
 .byte    $8d
-    aschi   "FLASHING NOW!"
+    aschi   "PROGRAMMING NOW!"
 .byte    $8d
 .byte    0
 
 flashingcomplete:
 .byte    $8d
-    aschi   "FLASHING COMPLETE PRESS ENTER"
+    aschi   "PROGRAMMING COMPLETE. PRESS ENTER"
 .byte    $8d
 .byte    0
 
 noflash:
 .byte    $8d
-    aschi   "DID NOT FLASH PRESS ENTER"
+    aschi   "DID NOT UPDATE. PRESS ENTER"
 .byte    $8d
 .byte    0
 

@@ -15,10 +15,10 @@ clean:
 FW_VERSION := $(subst ",,$(FW_VERSION))
 ZIP_FILE := DANII_Release_v$(FW_VERSION).zip
 
-DISK_FILES := DANII_FW_$(FW_VERSION).po DANII_FW_$(FW_VERSION).dsk ip65.po ip65.dsk DANII_FTP_IPCONFIG.dsk DANII_FTP_IPCONFIG.po
+DISK_FILES := DANIIUTIL.$(FW_VERSION).po DANIIUTIL.$(FW_VERSION).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO ADTPRO-2.1.D2.DSK
 
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
-UTILS := utilities/allvols/bin/ALLVOLS.SYSTEM
+UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM fwupdate/bin/FWUPDATE.SYSTEM eeprom/bin/EEPROM.PROG.SYS eeprom/bin/SRAM.PROG.SYS)
 
 release:
 	- rm $(ZIP_FILE)

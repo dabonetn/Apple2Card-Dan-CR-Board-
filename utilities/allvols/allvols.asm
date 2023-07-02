@@ -7,11 +7,13 @@
   highdev = $fd
 
 ; monitor subroutines
-  home = $fc58
-  outch = $fded
-  rdkey = $fd0c
-  dowait = $fca8
+  home    = $fc58
+  outch   = $fded
+  rdkey   = $fd0c
+  dowait  = $fca8
   monitor = $ff59
+  PRHEX   = $FDE3
+  PRBYTE  = $FDDA
 
    .org  $2000
 ; origin for ProDOS system block
@@ -109,26 +111,26 @@ haveslot:
     lda  confbt
     cmp  #1
     bne  notconf1
-    ldx  #1
+    ldx  #1        ; OPTION 1: volumes 1-8
     ldy  #8
-    jsr  confrange
+    jsr  confrange ; 1-8 (x=1,y=8)
 notconf1:
     lda  confbt
     cmp  #2
     bne  notconf2
-    ldx  #9
+    ldx  #9        ; OPTION 2: volumes 9-16
     ldy  #16
-    jsr  confrange
+    jsr  confrange ; 9-16 (x=9,y=16)
 notconf2:
     lda  confbt
     cmp  #3
     bne  notconf3
-    ldx  #1
+    ldx  #1        ; OPTION 3: all volumes
     ldy  #8
-    jsr  confrange
+    jsr  confrange ; 1-8 (x=1,y=8)
     ldx  #9
     ldy  #16
-    jsr  confrange
+    jsr  confrange ; 9-16 (x=9,y=16)
 notconf3:
 quitearly:
     lda  interactive
@@ -158,7 +160,7 @@ parmquit:
 .byte  0
 .byte  0
 
-confrange:
+confrange:         ; map volumes from X to Y
   stx  lowdev
   sty  highdev
 addev:
@@ -192,13 +194,13 @@ addslot:
   sta  listdev,y
   lda  interactive
   beq  nextslot
-  lda  #'S'+128
+  lda  #'S'+128   ; print 'S'
   jsr  outch
   txa
   and  #$07
   ora  #128+48
-  jsr  outch 
-  lda  #'D'+128
+  jsr  outch      ; print slot number '0'-'7'
+  lda  #'D'+128   ; print 'D'
   jsr  outch
   txa
   and  #$08
@@ -206,9 +208,11 @@ addslot:
   lsr  a
   lsr  a
   clc
-  adc  #128+49
+  adc  #128+49   ; print drive number '1'-'2'
   jsr  outch
-  lda  #' '+128
+  lda  #' '+128  ; print space
+  jsr  outch
+  lda  #13+128   ; print LF
   jsr  outch
 nextslot:
   inx
@@ -228,7 +232,7 @@ outend:
     rts
 
 startmsg:
-    aschi   "DAN ][ CONFIGURE VOLUMES"
+    aschi   "DAN II CONFIGURE VOLUMES"
 .byte    $8d
 .byte    0
 
