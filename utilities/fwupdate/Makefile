@@ -54,9 +54,9 @@ bin/FWUPDATE.PRG: bin/fwupdate.o bin/dan2stk500.o
 	@ld65 -C apple2-system.cfg  -D __EXEHDR__=0 -vm -m bin/FWUPDATE.list -o $@ bin/fwupdate.o bin/dan2stk500.o apple2.lib
 
 # build firmware update module
-bin/fwupdate.o: fwupdate.c
+bin/fwupdate.o: fwupdate.c ../../version.mk
 	@echo "Compiling fwupdate.c"
-	@cc65 -t apple2 -D__EXEHDR__=0 -o bin/fwupdate.asm fwupdate.c
+	@cc65 -t apple2 -D__EXEHDR__=0 -DFW_VERSION=\"$(FW_VERSION)\" -o bin/fwupdate.asm fwupdate.c
 	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ bin/fwupdate.asm
 
 # build STK500 updater

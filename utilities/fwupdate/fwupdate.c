@@ -69,7 +69,7 @@ void main(void)
   printf("\n");
   inverse();
   printf("            DANII CONTROLLER           \n");
-  printf("            FIRMWARE UPDATER           \n");
+  printf("         FIRMWARE UPDATER " FW_VERSION "        \n");
   norm();
 
   do
