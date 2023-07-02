@@ -757,9 +757,10 @@ void do_get_ip_config(void)
 }
 #endif
 
-void do_command()
+void do_command(uint8_t cmd)
 {
-  uint8_t cmd = read_dataport();
+  if (cmd == 0xac)
+    cmd = read_dataport();
 #ifdef DEBUG_SERIAL
   SERIALPORT()->print("0000 cmd=");
   SERIALPORT()->println(cmd, HEX);
@@ -859,6 +860,19 @@ void setup()
 #endif
 
   DATAPORT_MODE_RECEIVE();
+
+  /* kludge: when pressing Ctrl-Reset (warmstart), the very first $AC sync byte may be eaten by the bootloader,
+     with the next command byte already pending.
+     The first ProDOS access after a warmstart is usually a "read disk" command (0x01).
+     To prevent issues with very early ProDOS disk reads after a warmstart, we make an exception and accept
+     a read-disk command, even without a preceding sync byte ($AC) - but only if this is already pending during
+     the setup phase...
+  */
+  if (READ_OBFA() == 0) // very early command-byte already pending?
+  {
+    uint8_t instr = read_dataport();
+    if ((instr == 0xAC)||(instr == 0x01)) do_command(instr);
+  }
 }
 
 void loop()
@@ -877,7 +891,7 @@ void loop()
   while (READ_OBFA() == 0)
   {
     uint8_t instr = read_dataport();
-    if (instr == 0xAC) do_command();
+    if (instr == 0xAC) do_command(instr);
     CHECK_MEM(0); // memory overflow check (when enabled)
   }
 }
