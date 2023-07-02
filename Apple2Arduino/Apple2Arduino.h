@@ -50,6 +50,11 @@ extern "C" {
 #endif
 }
 
+#ifdef DEBUG_BYTES
+extern uint8_t DEBUG_counter;
+extern uint8_t DEBUG_data[DEBUG_BYTES];
+#endif
+
 #ifdef USE_MEM_CHECK
   #define CHECK_MEM(id) check_memory(id)
 #else

@@ -210,6 +210,18 @@ void ftpSendReply(char* buf, uint16_t code)
 
   uint8_t sz = 4;
   sz += strReadProgMem(&buf[sz], msg);
+#ifdef DEBUG_BYTES
+  // Output some DEBUG bytes by appending it to the FTP welcome messaage.
+  // Enables obtaining simple debugging bytes through the Ethernet/FTP connection.
+  if (code == 220)
+  {
+    for (uint8_t i=0;(i<DEBUG_counter)&&(i<DEBUG_BYTES);i++)
+    {
+      buf[sz++] = hex_digit(DEBUG_data[i]>>4);
+      buf[sz++] = hex_digit(DEBUG_data[i]&0xf);
+    }
+  }
+#endif
   FTP_CMD_REPLY(buf, sz);
 }
 

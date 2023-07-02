@@ -7,6 +7,7 @@
 
 #undef USE_MEM_CHECK     // enable this for memory overflow checks
 #undef DEBUG_SERIAL      // enable this for serial debug output
+//#define DEBUG_BYTES  8   // only for debugging: enable capturing some debug bytes
 
 /* Select boot program:
   1=no boot program

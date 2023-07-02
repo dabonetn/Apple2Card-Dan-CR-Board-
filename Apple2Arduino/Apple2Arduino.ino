@@ -98,6 +98,11 @@ uint8_t a2slot;
 static char blockvol[] = "X:";
 static char blockdev_filename[] = "X:BLKDEVXX.PO";
 
+#ifdef DEBUG_BYTES
+uint8_t DEBUG_counter = 0;
+uint8_t DEBUG_data[DEBUG_BYTES];
+#endif
+
 extern int __heap_start, *__brkval;
 
 extern "C" {
@@ -109,6 +114,17 @@ extern "C" {
 #endif
   }
 }
+
+#ifdef DEBUG_BYTES
+void debug_log(uint8_t value)
+{
+  uint8_t i = 0;
+  while ((i<DEBUG_counter)&&(DEBUG_data[i]!=value))
+    i++;
+  if ((i<DEBUG_BYTES)&&(i==DEBUG_counter)&&(value))
+    DEBUG_data[DEBUG_counter++] = value;
+}
+#endif
 
 void read_eeprom(void)
 {
