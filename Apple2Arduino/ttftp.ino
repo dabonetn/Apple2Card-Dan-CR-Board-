@@ -260,11 +260,11 @@ bool ftpSelectFile(uint8_t fileno, uint32_t* pFileBlockCount)
 
   uint32_t FileBlockCount = 0;
   if (slot_type[request.sdslot] == SLOT_TYPE_RAW)
-    FileBlockCount = 65535; // fixed maximum volume size
+    FileBlockCount = 65536; // fixed maximum volume size
   else
     FileBlockCount = (f_size(&current_file) >> 9); // size of the DOS file
-  if (FileBlockCount > 65535)
-    FileBlockCount = 65535;
+  if (FileBlockCount > 65536)
+    FileBlockCount = 65536;
   *pFileBlockCount = FileBlockCount;
 
   return true;
