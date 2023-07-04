@@ -97,6 +97,7 @@ const char FTP_WELCOME[]          PROGMEM = "Welcome to DAN][, v" FW_VERSION ". 
 const char FTP_NO_FILE[]          PROGMEM = "No such file/folder";
 const char FTP_TOO_LARGE[]        PROGMEM = "File too large";
 const char FTP_BAD_FILENAME[]     PROGMEM = "Bad filename";
+const char FTP_FILE_ERR[]         PROGMEM = "I/O error";
 const char FTP_DAN2[]             PROGMEM = "DAN][";
 const char FTP_BYE[]              PROGMEM = "Bye.";
 const char FTP_OK[]               PROGMEM = "Ok";
@@ -201,6 +202,7 @@ void ftpSendReply(char* buf, uint16_t code)
     case 215: msg = FTP_DAN2;break;
     case 220: msg = FTP_WELCOME;break;
     case 221: msg = FTP_BYE;break;
+    case 451: msg = FTP_FILE_ERR;break;
     case 550: msg = FTP_NO_FILE;break;
     case 552: msg = FTP_TOO_LARGE;break;
     case 553: msg = FTP_BAD_FILENAME;break;
@@ -396,7 +398,7 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
     {
       file_seek(blknum);
       if (vol_read_block(buf) != PRODOS_OK)
-        return 552;
+        return 451; // I/O error
       blknum++;
       CHECK_MEM(1020);
       if (FtpDataClient.write(buf, 512) != 512)
@@ -444,13 +446,15 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
           TcpBytes-=rd;
           if (BufOffset >= FTP_BUF_SIZE)
           {
+            if (blknum >= FileBlocks)
+              return 552; // file too large
+
             // write block to disk
             file_seek(blknum);
-            if ((blknum >= FileBlocks)||
-                (vol_write_block(buf) != PRODOS_OK))
+            if (vol_write_block(buf) != PRODOS_OK)
             {
               FTP_DEBUG_PRINTLN(F("badwr"));
-              return 552;
+              return 451; // I/O error
             }
             blknum++;
             BufOffset = 0;
@@ -465,11 +469,12 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
     }
     if (BufOffset>0)
     {
+      if (blknum >= FileBlocks)
+        return 552; // file too large
       file_seek(blknum);
-      if ((blknum >= FileBlocks)||
-          (vol_write_block(buf) != PRODOS_OK))
+      if (vol_write_block(buf) != PRODOS_OK)
       {
-        return 552;
+        return 451; // I/O error
       }
     }
   }
