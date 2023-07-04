@@ -25,6 +25,13 @@
 .endrep
 .endmacro
 
+; generated string with inverted characters
+.MACRO   ASCINV STR
+.REPEAT  .STRLEN (STR), C
+.BYTE    .STRAT (STR, C) & $3F
+.ENDREP
+.ENDMACRO
+
 start:
     jsr  home   ; clear the screen
     ldy  #<startmsg
@@ -148,7 +155,8 @@ complete:
     ldy  #>flashingcomplete
     sty  lochi
     jsr  outmsg
-waitenter:
+
+resetpio:
     ldx  ioffset
     lda  #$fa
     sta  $bffb,x                 ; port B input, port C output in the control register
@@ -169,7 +177,7 @@ quitearly:
     ldy  #>noflash
     sty  lochi
     jsr  outmsg
-    jmp  waitenter
+    jmp  resetpio
 
 parmquit:
 .byte  4
@@ -296,32 +304,32 @@ outend:
     rts
 
 startmsg:
-    aschi   "EEPROM UPDATE UTILITY"
-.byte    $8d
+    ASCINV  "     DANII EEPROM UPDATE UTILITY      "
+.byte    $8d,$8d
     aschi   "SHORT ALL JUMPERS JP2,JP3,JP4,JP6,"
 .byte    $8d
-    aschi   "JP7,JP8,JP9,JP10 TO FLASH."
-.byte    $8d
+    aschi   "JP7,JP8,JP9,JP10 TO PROGRAM."
+.byte    $8d,$8d
     aschi   "ONLY SHORT JP2 FOR NORMAL USE."
-.byte    $8d
-    aschi   "ENTER SLOT NUMBER: (1-7,ESC QUIT) "
+.byte    $8d,$8d
+    aschi   "ENTER SLOT NUMBER: (1-7,ESC QUIT): "
 .byte    0
 
 flashingnow:
-.byte    $8d
-    aschi   "PROGRAMMING NOW!"
+.byte    $8d,$8d
+    aschi   "PROGRAMMING!"
 .byte    $8d
 .byte    0
 
 flashingcomplete:
 .byte    $8d
-    aschi   "PROGRAMMING COMPLETE. PRESS ENTER"
+    aschi   "PROGRAMMING COMPLETE. PRESS ENTER."
 .byte    $8d
 .byte    0
 
 noflash:
 .byte    $8d
-    aschi   "DID NOT UPDATE. PRESS ENTER"
+    aschi   "DID NOT UPDATE. PRESS ENTER."
 .byte    $8d
 .byte    0
 

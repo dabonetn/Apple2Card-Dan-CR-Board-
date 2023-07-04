@@ -161,6 +161,12 @@ void doConfig(void)
 	{
 		printf(" IP  : ");
 		gets(str);
+		if (str[0] == 0)
+		{
+		  // abort
+		  slot = 99;
+		  return;
+		}
 		ip[0]=ip[1]=ip[2]=ip[3]=0;
 		e = sscanf(str, "%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
 		if ((e==1)&&(ip[0]==0))
@@ -240,7 +246,8 @@ void main(void)
    getSlot();
    if (slot<=7)
      doConfig();
-   else
+
+   if (slot>7)
    {
      printf("\n\nCONFIGURATION ABORTED!\n");
      for (i=0;i<7000;i++)

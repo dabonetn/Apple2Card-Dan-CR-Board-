@@ -32,6 +32,13 @@
 .endrep
 .endmacro
 
+; generated string with inverted characters
+.MACRO   ASCINV STR
+.REPEAT  .STRLEN (STR), C
+.BYTE    .STRAT (STR, C) & $3F
+.ENDREP
+.ENDMACRO
+
 start:
     jmp  start1
 confbt:
@@ -232,12 +239,12 @@ outend:
     rts
 
 startmsg:
-    aschi   "DAN II CONFIGURE VOLUMES"
+    ASCINV  "     DAN II VOLUME CONFIGURATION     "
 .byte    $8d
 .byte    0
 
 endmsg:
-.byte    $8d
+.byte    $8d,$8d
     aschi   "PRESS RETURN"
 .byte    $8d
 .byte    0
@@ -250,15 +257,14 @@ addvolsmsg:
 
 getconf:
  .byte   $8d
-    aschi   "1 = CONFIGURE SLOT 1 VOLUMES"
+    aschi   " 1  = CONFIGURE SLOT 1 VOLUMES"
 .byte    $8d
-    aschi   "2 = CONFIGURE SLOT 2 VOLUMES"
+    aschi   " 2  = CONFIGURE SLOT 2 VOLUMES"
 .byte    $8d
-    aschi   "3 = CONFIGURE SLOT 1 & 2 VOLUMES"
+    aschi   " 3  = CONFIGURE SLOT 1 & 2 VOLUMES"
 .byte    $8d
-    aschi   "ESC ABORT"
-.byte    $8d
+    aschi   "ESC = ABORT"
+.byte    $8d,$8d
     aschi   "SELECTION: "
 .byte    0
-
 
