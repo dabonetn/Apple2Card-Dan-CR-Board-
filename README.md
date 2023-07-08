@@ -145,17 +145,16 @@ When the card is the primary boot device then the message "DAN II: PRESS RETURN"
 
 ## Boot Menu
 If the RETURN key is pressed during boot up, the boot menu is loaded.
-The boot menu allows the selection of the volumes.
+The boot menu allows the selection of the volumes for the card's ProDOS drives 1 + 2.
 
 ![Boot Menu](pics/bootmenu.jpg)
 
-* Use the **ARROW KEYS** (or **SPACE**/**,**) to select the active volume for each SD card.
+* Use the **ARROW KEYS** (or **SPACE**/**,**) to select the active volume for each ProDOS drive and press **RETURN** to confirm.
 * Alternatively press keys **0** to **9** or **A** to **F** to directly select volumes.
-* Press **RETURN** to keep the current selection.
-* Press **ESCAPE** to abort.
+* Press **ESCAPE** to abort and keep the previous drive configuration.
 * Press **I** to enter the IP configuration dialog (if you have a Wiznet adapter, see below).
 
-After selecting the volumes of the two slots, the system continues booting.
+After selecting the volumes for drives 1 + 2 the system immediately boots from the volume selected for drive 1.
 
 # Ethernet/Network Interface
 The card can be extended with an Ethernet interface. A cheap Wiznet 5500 device can be connected to **J6** using a ribbon cable as indicated:
