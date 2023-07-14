@@ -668,6 +668,28 @@ void check_memory(int id)
 }
 #endif
 
+// Briefly flash both slot LEDs when no SD card is installed.
+// Can be used as a simple notification that the ATMEGA is fine and running,
+// when a new DAN][ was built.
+// Also provides a feedback when there is an issue with (both) SD cards,
+// and nothing was detected.
+void no_cards_blink()
+{
+  // no SD card at all detected?
+  if ((slot_type[0] == SLOT_TYPE_NODISK)&&
+      (slot_type[1] == SLOT_TYPE_NODISK))
+  {
+    // briefly blink both slot LEDs
+    for (uint8_t i=0;i<6;i++)
+    {
+      PORTB &= ((i&1) ? ~0x02 : ~0x4);
+      delay(150);
+      PORTB |= 0x06;
+      delay(150);
+    }
+  }
+}
+
 void setup()
 {
 #ifdef USE_MEM_CHECK
@@ -681,6 +703,8 @@ void setup()
 
   vol_check_sdslot_type(SDSLOT2);
   vol_check_sdslot_type(SDSLOT1);
+
+  no_cards_blink();
 
 #ifdef DEBUG_SERIAL
   SERIALPORT()->println("0000");
