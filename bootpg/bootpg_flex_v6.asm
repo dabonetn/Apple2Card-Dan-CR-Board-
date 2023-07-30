@@ -142,14 +142,14 @@ LOADOK:
          JSR SETKBD
          JSR SHOW_TITLE       ; show header/footer lines
          JSR SHOWSD
-         JSR GETVOL           ; get volume numbers
+         JSR DAN_GETVOL       ; get volume numbers
          JSR DISPCUR          ; show current volume numbers
          JSR SHOWVOLNAMES
          JSR PREVIOUS_VOLUMES ; load default value (previously selected volumes)
-         JSR SETVOL           ; restore current volume selection (user aborts or presses RESET)
+         JSR DAN_SETVOL       ; restore current volume selection (user aborts or presses RESET)
          JSR SHOWIP           ; show FTP/IP configuration, if applicable
          JSR ASKVOL           ; ask for new user selection
-         JSR SETVOLW          ; write user selection
+         JSR DAN_SETVOLW      ; write user selection
          JMP REBOOT
 
 SHOWVOLNAMES:
@@ -164,7 +164,7 @@ UNITLOOP:
          STA VOLDRIVE0   ; select volume #VOL on SD1
          ORA #$80        ; select volume #VOL on SD2
          STA VOLDRIVE1
-         JSR SETVOL
+         JSR DAN_SETVOL
 
          LDA #0          ; start at column 0
          JSR DISPVOLUME  ; show item number and volume name
@@ -401,7 +401,7 @@ SETINV:
          LDA #$3F
          STA INVFLG        ; enable inverse printing of selected volume name
 NOINVFLG:
-         JSR READB         ; read a block from drive 0
+         JSR DAN_READBLOCK ; read a block from drive 0
 DISPNAME:
          BCS NOHEADER      ; didn't read a sector
          LDA BLKBUF+5      ; if greater than $80 not a valid ASCII
@@ -559,34 +559,35 @@ DISPMSG: LDA MSGS,X
          BNE DISPMSG
 RTSL:    RTS
 
-READB:
+DAN_READBLOCK:
          LDY #$00
          STY BLKHI
          INY               ; Y=1: read block
          STY COMMAND       ; store at $42
          INY               ; Y=2: which block (in this example $0002)
          STY BLKLO
-         JMP DANCOMM
+         JMP DAN_COMM
 
-SETVOLW: LDA #$07          ; set volume but write to EEPROM
-         BNE DANVOLCMD
-SETVOL:
+DAN_SETVOLW:
+         LDA #$07          ; set volume but write to EEPROM
+         BNE DAN_VOLCMD
+DAN_SETVOL:
          LDA #$06          ; set volume dont write to EEPROM
-DANVOLCMD:
+DAN_VOLCMD:
          STA COMMAND
          LDA VOLDRIVE0
          STA BLKLO         ; DRIVE 0: firmware expects 0-7f=volumes on SD1, 0x80-0xfe=volumes on SD2
          LDA VOLDRIVE1
          EOR #$80          ; DRIVE 1: flip MSB - since the firmware expects 0-7f=volumes on SD2, 0x80-0xfe=volumes on SD1
          STA BLKHI
-DANCOMM:
+DAN_COMM:
          LDA #<BLKBUF      ; store buffer location
          STA BUFLO
          LDA #>BLKBUF
          STA BUFHI
          JMP INSTRUC
 
-GETVOL:
+DAN_GETVOL:
 .IFDEF SIM_DEBUG
          LDA #$02          ; just for sim testing without hardware
          STA BLKBUF
@@ -595,7 +596,7 @@ GETVOL:
 .ENDIF
          LDA #$05          ; read block
          STA COMMAND       ; store at $42
-         JSR DANCOMM
+         JSR DAN_COMM
          LDA BLKBUF
          STA GVOLDRIVE0
          LDA BLKBUF+1
@@ -606,7 +607,7 @@ GETVOL:
 
 SHOWIP:
          LDA #$21          ; get IP configuration
-         JSR DANVOLCMD
+         JSR DAN_VOLCMD
          BCS RTSL
          LDA BLKBUF+16     ; get FTP/IP state
          BEQ RTSL
@@ -777,9 +778,8 @@ DELAY:
 
          JSR HOME          ; clear screen
 .IFDEF SIM_DEBUG
-STOP:    JMP STOP
+:        JMP :-            ; loop forever
 .ELSE
-
          LDA #$08          ; push return address $0800 to the stack
          PHA
          STA BUFHI         ; also store $800 in BUF address
