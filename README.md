@@ -111,7 +111,7 @@ Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
 ## FAT16/FAT32 Mode
 You can use SD cards with either FAT16 or FAT32 file system as the first partition.
 In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **VOL00.PO** - **VOL09.PO** or **VOL0A.PO** - **VOL0F.PO** (up to 16 volumes). However, only the file extension (.PO) and the first 5 characters ("VOLxx") matter.
-The rest of the filename is ignores. So you can use filenames like "VOL02_TotalReplay.po" to keep your files organized.
+The rest of the filename is ignored. So you can use filenames like "VOL02_TotalReplay.po" to keep your files organized.
 Example directory:
 
         VOL00_TotalReplay.po
