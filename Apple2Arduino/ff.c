@@ -23,6 +23,9 @@
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio_sdc.h"		/* Declarations of device I/O functions */
 
+// hack: number of characters of the base file name to compare (everything
+// else is ignored): we use either all 8 or only 5 characters ("BLKDEVxx" or "VOLxx")
+extern uint8_t vol_filename_length; 
 
 /*--------------------------------------------------------------------------
 
@@ -2418,7 +2421,13 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 		}
 #else		/* Non LFN configuration */
 		dp->obj.attr = dp->dir[DIR_Attr] & AM_MASK;
-		if (!(dp->dir[DIR_Attr] & AM_VOL) && !memcmp(dp->dir, dp->fn, 11)) break;	/* Is it a valid entry? */
+		if (!(dp->dir[DIR_Attr] & AM_VOL))  /* Is it a valid entry? */
+		{
+		  // is it a matching entry?
+		  if ((!memcmp(dp->dir, dp->fn, vol_filename_length))&&  // check base file name (maybe less than 8 bytes)
+		      (!memcmp(dp->dir+8, dp->fn+8, 3))) // check 3 bytes of extension
+		    break;
+		}
 #endif
 		res = dir_next(dp, 0);	/* Next entry */
 	} while (res == FR_OK);

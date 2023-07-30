@@ -701,8 +701,10 @@ void setup()
   setup_serial();
   read_eeprom();
 
-  vol_check_sdslot_type(SDSLOT2);
-  vol_check_sdslot_type(SDSLOT1);
+  request.sdslot = SDSLOT2;
+  vol_check_sdslot_type();
+  request.sdslot = SDSLOT1;
+  vol_check_sdslot_type();
 
   no_cards_blink();
 

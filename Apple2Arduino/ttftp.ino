@@ -81,8 +81,8 @@ const char FtpCommandList[] PROGMEM = "USER" "SYST" "CWD " "TYPE" "QUIT" "PASV" 
 typedef enum {DIR_SDCARD1=0, DIR_SDCARD2=1, DIR_ROOT=2} TFtpDirectory;
 typedef enum {FTP_DISABLED=-1, FTP_NOT_INITIALIZED=0, FTP_INITIALIZED=1, FTP_CONNECTED=2} TFtpState;
 
-//                                          "-rw------- 1 volume: 123456789abcdef 12345678 Jun 10 1977 BLKDEV01.PO\r\n"
-const char FILE_TEMPLATE[]        PROGMEM = "-rw------- 1 volume: ---             12345678 Jun 10 1977 BLKDEV01.PO\r\n";
+//                                          "-rw------- 1 volume: 123456789abcdef 12345678 Jun 10 1977 VOL01.PO\r\n"
+const char FILE_TEMPLATE[]        PROGMEM = "-rw------- 1 volume: ---             12345678 Jun 10 1977 VOL01.PO\r\n";
 #define FILE_TEMPLATE_LENGTH      (sizeof(FILE_TEMPLATE)-1)
 
 const char DIR_TEMPLATE[]         PROGMEM = "drwx------ 1 DAN][ FAT 1 Jun 10 1977 SD1\r\n";
@@ -112,7 +112,7 @@ struct
   uint8_t CmdId;        // current FTP command
   uint8_t Directory;    // current working directory
   uint8_t _file[2];     // remembered original configuration
-  char    CmdData[12];  // must just be large enough to hold file names (11 bytes for "BLKDEVXX.PO")
+  char    CmdData[8];   // must just be large enough to hold file names (just for the first 8 bytes of 8.3 filenames)
 } Ftp;
 
 int8_t  FtpState = FTP_NOT_INITIALIZED;
@@ -345,8 +345,8 @@ void ftpHandleDirectory(char* buf)
   }
   else
   {
-    // iterate over possible file names: BLKDEVXX.PO
-    for (uint8_t fno=0;fno<FTP_MAX_BLKDEV_FILES;fno++)
+    // iterate over possible file names: VOLXX.PO
+    for (uint8_t fno=0;fno<FTP_MAX_VOL_FILES;fno++)
     {
       uint32_t FileBlocks;
       if (ftpSelectFile(fno, &FileBlocks))
@@ -393,7 +393,7 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
     // obtain ProDOS file size for reading
     FileBlocks = getProdosVolumeInfo((uint8_t*) buf, NULL, FileBlocks);
     // read from disk and send to remote
-    // we only send the data for the ProDOS drive - the physical BLKDEVxx.PO file may be larger...
+    // we only send the data for the ProDOS drive - the physical VOLxx.PO file may be larger...
     while (blknum < FileBlocks)
     {
       file_seek(blknum);
@@ -481,13 +481,13 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
   return 226; // file transfer successful
 }
 
-// check the requested file name - and get the file block device number
-uint8_t getBlkDevFileNo(char* Data)
+// check the requested file name - and get the volume file number
+uint8_t getVolFileNo(char* Data)
 {
-  uint8_t digit = Data[6];
-  Data[6] = 0;
+  uint8_t digit = Data[3]; // get the first digit
+  Data[3] = 0; // only check the first 3 bytes
 
-  if (!strMatch(Data, "BLKDEV"))
+  if (!strMatch(Data, "VOL"))
   {
     return 255;
   }
@@ -501,8 +501,10 @@ uint8_t getBlkDevFileNo(char* Data)
     else
     if ((digit>='A')&&(digit<='F'))
       digit -= 'A'-10;
+    else
+      return 255; // invalid file number
     fno |= digit;
-    digit = Data[7];
+    digit = Data[4]; // get the next/lower digit
   }
   
   return fno;
@@ -571,8 +573,8 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
         }
         else
         {
-          uint8_t fno = getBlkDevFileNo(Data);
-          if (fno >= FTP_MAX_BLKDEV_FILES)
+          uint8_t fno = getVolFileNo(Data);
+          if (fno >= FTP_MAX_VOL_FILES)
             ReplyCode = 553; // file name not allowed
           else
           {

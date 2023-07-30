@@ -31,5 +31,5 @@
 // FTP data port can be any port
 #define FTP_DATA_PORT    20
 
-// Maximum number of BLKDEVxx files supported by FTP (16/BLKDEV00-BLKDEV0F are enough)
-#define FTP_MAX_BLKDEV_FILES 16
+// Maximum number of VOLxx.PO files supported by FTP (16 for VOL00.PO - VOL0F.PO are enough)
+#define FTP_MAX_VOL_FILES 16

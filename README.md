@@ -25,7 +25,7 @@ The gerbers for the PCB are in the [Apple2Card/Gerber](/Apple2Card/Gerber) direc
 
 ## Jumpers
 * **JP1** is the ICSP power jumper. This needs to be closed for ICSP programming on the bench, to power the board when it is **not** plugged in an Apple II slot. Remove this jumper for ICSP programming when the board powered through an Apple II slot. This jumper doesn't matter for normal use.
-* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM and logic ICs. **JP5 must be closed for normal use.** It is only opened for certain tests on the bench - or when you attempt ICSP programming of the card while it is plugged in an Apple II, while the Apple II is switched off.
+* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM, logic ICs and possibly Apple II mainboard. Should be left open if you connect an ICSP programmer to the card. Otherwise can be closed for normal use.
 * **JP2** is the bank switch jumper. It **always needs to be closed**. It can be hardwired/soldered closed.
 * **JP3**, **JP4**, **JP6**, **JP7**, **JP8**, **JP9**, **JP10** are the programming jumpers. If an EEPROM is used then these need to be closed during onboard programming (see EEPROM.SYSTEM below). However, **these jumpers must remain open for normal use**.
 
@@ -110,7 +110,20 @@ Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
 
 ## FAT16/FAT32 Mode
 You can use SD cards with either FAT16 or FAT32 file system as the first partition.
-In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **BLKDEV00.PO** - **BLKDEV09.PO** or **BLKDEV0A.PO** - **BLKDEV0F.PO** (up to 16 volumes). These volumes need to contain normal Apple II ProDOS volumes (between 140K to 33MB).
+In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **VOL00.PO** - **VOL09.PO** or **VOL0A.PO** - **VOL0F.PO** (up to 16 volumes). However, only the file extension (.PO) and the first 5 characters ("VOLxx") matter.
+The rest of the filename is ignores. So you can use filenames like "VOL02_TotalReplay.po" to keep your files organized.
+Example directory:
+
+        VOL00_TotalReplay.po
+        VOL01_InstantReplay.po
+        VOL02_Apple2Desktop.po
+        VOL03.po
+        VOL04.po
+        VOL0F_Foo.po
+
+Each volume file needs to contain normal Apple II ProDOS volumes (between 140K to 33MB).
+
+*Note: For backward-compatibility the old file naming scheme "BLKDEVxx.PO" is also still supported. However, this scheme does not support longer file names (no characters are ignored). Also, you cannot mix the naming schemes - not on a single SD card, nor on two SD cards plugged at the same time.*
 
 An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](/volumes/SingleBlankVol.zip).
 
@@ -174,7 +187,7 @@ The [CAD](/CAD) folder contains different STL designs for 3D printed brackets, w
 
 ## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files.
-The volumes are shown in two separate directories (SD1 and SD2) and list the volume files BLKDEV00.PO-BLKDEV0F.PO.
+The volumes are shown in two separate directories (SD1 and SD2) and list the volume files VOL00.PO-VOL0F.PO.
 Other files and other directories stored on **FAT** format disks are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
 
 The Apple II access is suspended as soon as any FTP session is active. Disconnect your FTP client to resume Apple II access to the volumes.
@@ -187,7 +200,7 @@ Notice that any RESET of the Apple II also resets the DAN][Controller and the ne
 The FTP server cannot create new files, nor rename files. It also cannot enlarge files.
 
 #### SD Cards with FAT Format
-Prepare fresh SD cards before installing them by creating all required volume files (BLKDEV0X.PO) in the root folder of the SD card:
+Prepare fresh SD cards before installing them by creating all required volume files (VOLxx.PO) in the root folder of the SD card:
 Just use an empty 33MB ProDOS template for each file.
 The FTP server is able to upload/download data to a volume as soon as the respective file exists.
 
@@ -196,7 +209,7 @@ Even if you prepare the SD card using ProDOS images of the maximum supported siz
 You can upload files of any supported size. Small standard 140K floppy disk **ProDOS** images also work (not just large harddrive volumes).
 
 #### SD Cards with RAW Block Mode
-FTP access is also supported for SD cards using "**Raw Block Mode**" (see above). The SD card format is automatically detected. The volumes stored on raw block SD cards are also visible via FTP with standard filenames (BLKDEV00.PO-BLKDEV0F.PO) - just as if the SD card was using a FAT filesystem.
+FTP access is also supported for SD cards using "**Raw Block Mode**" (see above). The SD card format is automatically detected. The volumes stored on raw block SD cards are also visible via FTP with standard filenames (VOL00.PO-VOL0F.PO) - just as if the SD card was using a FAT filesystem.
 
 The normal preparation of SD cards for Raw Block Mode (writing the "Blankvols.PO" to the card, see above) is enough to make these cards also available for FTP access. The directory list of the FTP root directory also shows which format was detected for each SD card (RAW vs FAT).
 

@@ -54,6 +54,5 @@ extern int8_t    slot_type[2];
 uint8_t hex_digit          (uint8_t ch);
 uint8_t vol_read_block     (uint8_t* buf);
 uint8_t vol_write_block    (uint8_t* buf);
-void    vol_check_sdslot_type(uint8_t sdslot);
+void    vol_check_sdslot_type(void);
 bool    vol_open_drive_file(void);
-

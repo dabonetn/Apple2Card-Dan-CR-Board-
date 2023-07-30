@@ -26,13 +26,14 @@
 #include "ff.h"
 #endif
 
-request_t request;     // the slot/file/volume which is requested for access
-FATFS     current_fs;    // the FATFS which is currently mounted
-FIL       current_file;  // the FAT file which is currently mounted
+request_t request;               // the slot/file/volume which is requested for access
+FATFS     current_fs;            // the FATFS which is currently mounted
+FIL       current_file;          // the FAT file which is currently mounted
 uint8_t   current_filenum = 255; // the file number which is currently accessed (FAT or RAW)
 int8_t    slot_type[2]  = {SLOT_TYPE_UNKNOWN, SLOT_TYPE_UNKNOWN}; // the detected disk format (RAW/FAT/nothing)
 
-static char blockdev_filename[] = "X:BLKDEVXX.PO"; // the currently mounted drive (and file)
+char vol_filename[] = "X:BLKDEVXX.PO"; // the currently mounted drive (and file)
+uint8_t vol_filename_length = 8; // we can switch the vol_filename template to "X:VOLxx.PO" and shorten the name
 
 #define FILE_VALID(file) ((file)->obj.fs != NULL) // check if the FS object is valid
 
@@ -44,24 +45,24 @@ uint8_t hex_digit(uint8_t ch)
 
 #ifdef USE_FAT_DISK
 // mount a FAT disk of given SD card
-bool vol_mount(uint8_t sdslot)
+bool vol_mount(void)
 {
-  sdslot += '0'; // map to alphanum character
-  if (blockdev_filename[0] != sdslot) // already mounted?
+  char sdslot = request.sdslot+'0'; // map to alphanum character
+  if (vol_filename[0] != sdslot) // already mounted?
   {
-    if (blockdev_filename[0] != 'X') // anything else mounted?
+    if (vol_filename[0] != 'X') // anything else mounted?
     {
       if (FILE_VALID(&current_file)) // any open file?
       {
         f_close(&current_file);
         current_filenum = 255;
       }
-      f_unmount(blockdev_filename); // unmount the volume (ignores the filename)
+      f_unmount(vol_filename); // unmount the volume (ignores the filename)
     }
-    blockdev_filename[0] = sdslot;
-    if (f_mount(&current_fs, blockdev_filename, 1) != FR_OK) // this only mounts the volume, ignores the filename
+    vol_filename[0] = sdslot;
+    if (f_mount(&current_fs, vol_filename, 1) != FR_OK) // this only mounts the volume, ignores the filename
     {
-      blockdev_filename[0] = 'X'; // invalidate current drive
+      vol_filename[0] = 'X'; // invalidate current drive
       return false;
     }
   }
@@ -70,25 +71,41 @@ bool vol_mount(uint8_t sdslot)
 #endif
 
 // determine the SD card format (RAW/FAT/nothing)
-void vol_check_sdslot_type(uint8_t sdslot)
+void vol_check_sdslot_type(void)
 {
   // file system type known yet?
-  if (slot_type[sdslot] == SLOT_TYPE_UNKNOWN)
+  if (slot_type[request.sdslot] == SLOT_TYPE_UNKNOWN)
   {
 #ifdef USE_FAT_DISK
-    if (vol_mount(sdslot)) // immediate mount
+    if (vol_mount()) // immediate mount
     {
-      slot_type[sdslot] = SLOT_TYPE_FAT;  // FAT FS detected
+      slot_type[request.sdslot] = SLOT_TYPE_FAT;  // FAT FS detected
+
+      // have we already decided to use the new, short file naming scheme?
+      if (vol_filename_length==8) // not yet?
+      {
+        // check if "BLKDEV01.PO" exists
+        request.filenum = 1;
+        if (!vol_open_drive_file()) // no such file?
+        {
+          // switch to other/new naming scheme
+          uint32_t* p = (uint32_t*) &vol_filename[2];
+          *(p++) = 0x584c4f56; // 'VOLX' in space-saving 32bit form
+          *(p++) = 0x4f502e58; // 'X.PO' in space-saving 32bit form
+          *((uint8_t*) p) = 0;
+          vol_filename_length = 5; // shorten base filename to 5 characters "VOLxx"
+        }
+      }
     }
     else
 #endif
     {
-      slot_type[sdslot] = SLOT_TYPE_NODISK;
+      slot_type[request.sdslot] = SLOT_TYPE_NODISK;
 
 #ifdef USE_RAW_DISK
       // It's not a FAT disk. But is it raw/ProDOS disk?
       current_fs.winsect = -1; // invalidate sector window
-      if (disk_read(sdslot, current_fs.win, 2, 1) != 0) // read sector 2 with ProDOS header of volume 1
+      if (disk_read(request.sdslot, current_fs.win, 2, 1) != 0) // read sector 2 with ProDOS header of volume 1
       {
         // no disk or invalid format
         return;
@@ -101,7 +118,7 @@ void vol_check_sdslot_type(uint8_t sdslot)
       }
 
       // seems legit: raw block disk with ProDOS header in volume 1
-      slot_type[sdslot] = SLOT_TYPE_RAW;
+      slot_type[request.sdslot] = SLOT_TYPE_RAW;
 #endif
     }
   }
@@ -125,7 +142,7 @@ bool vol_open_drive_file(void)
 #ifdef USE_FAT_DISK
   // no disk or unable to mount?
   if ((slot_type[request.sdslot] <= SLOT_TYPE_UNKNOWN)||
-      (!vol_mount(request.sdslot)))
+      (!vol_mount()))
   {
     return false;
   }
@@ -135,9 +152,10 @@ bool vol_open_drive_file(void)
     return true;
 
   // open file
-  blockdev_filename[8] = hex_digit(request.filenum >> 4);
-  blockdev_filename[9] = hex_digit(request.filenum & 0x0F);
-  if (f_open(&current_file, blockdev_filename, FA_READ | FA_WRITE) == FR_OK)
+  vol_filename[(vol_filename_length&0xf)  ] = hex_digit(request.filenum >> 4);
+  vol_filename[(vol_filename_length&0xf)+1] = hex_digit(request.filenum & 0x0F);
+
+  if (f_open(&current_file, vol_filename, FA_READ | FA_WRITE) == FR_OK)
   {
     current_filenum = request.filenum;
     return true;

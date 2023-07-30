@@ -41,7 +41,8 @@ fwversion.h: ../version.mk
 
 # build and add custom bootloader
 $(HEX_FILE): $(SOURCES) fwversion.h bin bootloaders/$(BOOTLOADER)
-	@arduino-cli compile -b arduino:avr:uno $(BUILD_PROPERTIES) --clean --output-dir bin Apple2Arduino.ino
+	@arduino-cli compile -b arduino:avr:uno $(BUILD_PROPERTIES) --clean --output-dir bin Apple2Arduino.ino > Apple2Arduino.log
+	@cat Apple2Arduino.log
 	@cp bin/Apple2Arduino.ino.with_bootloader.hex $@
 
 clean:
