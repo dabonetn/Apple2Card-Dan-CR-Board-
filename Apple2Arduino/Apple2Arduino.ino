@@ -63,7 +63,7 @@
   #error Selected BOOTPG is not implemented.
 #endif
 
-#define NUMBER_BOOTBLOCKS (sizeof(bootblocks)/(512*sizeof(uint8_t)))
+#define NUMBER_BOOTBLOCKS ((sizeof(bootblocks)+511)/(512*sizeof(uint8_t)))
 
 #ifdef DEBUG_SERIAL
 #ifdef SOFTWARE_SERIAL
@@ -342,14 +342,13 @@ void read_bootblock(uint8_t* buf)
   // otherwise return data of builtin boot program
   a2slot = (unit >> 4) & 0x7;
 
-  request.blk &= 0xff;
-  while (request.blk >= NUMBER_BOOTBLOCKS)
-    request.blk -= NUMBER_BOOTBLOCKS;
-
   uint32_t blkofs = request.blk << 9;
-  for (uint16_t i = 0; i < 512; i++)
+  for (uint32_t i = 0; i < 512; i++)
   {
-    buf[i] = pgm_read_byte(&bootblocks[blkofs + i]);
+    if (blkofs + i < sizeof(bootblocks))
+      buf[i] = pgm_read_byte(&bootblocks[blkofs + i]);
+    else
+      buf[i] = 0xff;
   }
 }
 #endif
