@@ -30,6 +30,9 @@ BOOTLOADER    := optiboot_atmega328p_DANII_16000000L.hex
 PLATFORM_PATH := $(realpath .)
 BUILD_PROPERTIES := --build-property "runtime.platform.path=$(PLATFORM_PATH)" --build-property "bootloader.file=$(BOOTLOADER)"
 
+# set localisation to default, so arduino-cli log output does not depend on system language, but is always in english
+export LC_ALL:=C
+
 .PHONY: arduino all
 
 all: build
