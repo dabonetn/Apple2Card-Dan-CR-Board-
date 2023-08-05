@@ -330,6 +330,16 @@ uint8_t do_status(void)
 #if BOOTPG>1
 void read_bootblock(uint8_t* buf)
 {
+  // check if a custom boot program is available on any SD card (with FAT format)
+  if ((slot_type[0] == SLOT_TYPE_FAT)||(slot_type[1] == SLOT_TYPE_FAT))
+  {
+      request.sdslot  = (slot_type[0] == SLOT_TYPE_FAT) ? 0 : 1;
+      request.filenum = 0xff; // use file number 0xff (VOLFF.po)
+      if (vol_read_block(buf) == 0) // success?
+        return;
+  }
+
+  // otherwise return data of builtin boot program
   a2slot = (unit >> 4) & 0x7;
 
   request.blk &= 0xff;
