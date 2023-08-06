@@ -32,6 +32,8 @@ else
 Q 		:= @
 endif
 
+# Bootloaders are located at:
+# https://github.com/ThorstenBr/MiniCoreDAN2Controller.git
 # X4=1
 ifeq ($(X4),)
 DSTDIR		:= bin-328p
@@ -47,9 +49,13 @@ else
 # mv package_leonardomiliani.com_index.json ~/.arduino15/
 # arduino-cli --additional-urls package_leonardomiliani.com_index.json core install megax4:avr
 DSTDIR		:= bin-644p
-HEX_FILE	:= Apple2Arduino.ino.644.hex
+HEX_FILE	:= Apple2Arduino.ino.644.with_bootloader.hex
 BOARD		:= megax4:avr:atmegax4:cpu=644_16b
-# There is not yet support for the DANII bootloader for this, can't find the code!
+
+# cd MiniCoreDAN2Controller/avr/bootloaders/optiboot_flash
+# make atmega644p AVR_FREQ=16000000L DANII=1 GCCROOT=
+BOOTLOADER	:= optiboot_flash_atmega644p_UART_DANII_16000000L_NOLED.hex
+BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
 endif
 
 # set localisation to default, so arduino-cli log output does not depend on system language, but is always in english
@@ -71,7 +77,7 @@ $(HEX_FILE): $(SOURCES) fwversion.h bootloaders/$(BOOTLOADER) | $(DSTDIR)
 		echo Compilation failed. You need at least $$ arduino-cli core install arduino:avr \
 			and $$ arduino-cli lib install Ethernet
 	$(Q)cat $(DSTDIR)/build.log
-	$(Q)cp $(DSTDIR)/Apple2Arduino.ino.hex $@
+	$(Q)cp $(DSTDIR)/Apple2Arduino.ino.with_bootloader.hex $@
 
 clean:
 	$(Q)rm -f $(DSTDIR)/*.eep $(DSTDIR)/*.elf $(DSTDIR)/*.hex $(DSTDIR)/*.bin fwversion.h $(HEX_FILE)
