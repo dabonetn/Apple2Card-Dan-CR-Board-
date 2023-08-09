@@ -24,13 +24,23 @@ freely, subject to the following restrictions:
 #ifndef _PINDEFS_H
 #define _PINDEFS_H
 
-#define CS  10 
-#define CS2 9
-#define CS3 8
+#if defined(__AVR_ATmega328P__)
+#define CS     10    // PB2
+#define CS2    9     // PB1
+#define CS3    8     // PB0
 
-#define MOSI 11
-#define MISO 12
-#define SCK 13
+#define MOSI   11    // PB3
+#define MISO   12    // PB4
+#define SCK    13    // PB5
+#elif defined(__AVR_ATmega644P__)
+#define CS3    8     // PB0
+
+#define MOSI   5    // PB5
+#define MISO   6    // PB6
+#define SCK    7    // PB7
+#else
+#error Invalid platform for pindef.h!
+#endif
 
 #define SOFTWARE_SERIAL
 #define SOFTWARE_SERIAL_RX A4
@@ -64,6 +74,6 @@ freely, subject to the following restrictions:
   DDRC |= (_BV(0) | _BV(2)); \
   DDRC &= ~(_BV(1) | _BV(3)); \
   PORTC |= (_BV(0) | _BV(1) | _BV(2) | _BV(3)); \
-} while (0) 
+} while (0)
 
-#endif _PINDEFS_H
+#endif /* _PINDEFS_H */
