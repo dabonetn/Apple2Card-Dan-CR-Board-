@@ -11,8 +11,8 @@ The design uses only five commonly available integrated circuits, the 74HCT08 AN
 
 ![Apple2Card](pics/DAN2Controller.jpg)
 
-# PCBs
-The gerbers for the PCB are in the [Apple2Card/Gerber](/Apple2Card/Gerber) directory. You can directly send the [Apple2Card-Gerber.zip](/Apple2Card/Gerber/Apple2Card-Gerber.zip) to a PCB service like JLCPCB or PCBway, for example.
+# Gerber Files & PCBs
+You can directly download and send the [Apple2Card-Gerber-v1.1.1.zip](/Apple2Card/Gerber/Apple2Card-Gerber-v1.1.1.zip) to a PCB service like JLCPCB or PCBway, for example.
 
 ![Apple2Card](Apple2Card/Apple2Card.png)
 

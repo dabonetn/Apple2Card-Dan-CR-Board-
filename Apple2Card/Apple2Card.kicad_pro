@@ -55,7 +55,16 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        "silk_over_copper|118110000|94488000|4d68bfd0-600e-4f1c-a4c7-76529ae0afbb|df48aaa9-a1fa-40cd-8e71-daed8b558f70",
+        "silk_over_copper|118110000|94488000|4d68bfd0-600e-4f1c-a4c7-76529ae0afbb|fd0692a4-4687-4369-8e12-4355d079886e",
+        "silk_over_copper|118491000|103378000|6e461d31-5122-4d9a-b662-3eb712e60e6b|0d40dbf4-2d94-487a-a880-1fa1d90e951c",
+        "silk_over_copper|119446000|103325000|0d40dbf4-2d94-487a-a880-1fa1d90e951c|c9c25a01-2e77-438e-b047-f6169a054ddb",
+        "silk_over_copper|33020000|41418000|93ae67af-fc49-453e-96f2-e315894b5942|3ae5ff11-1c00-4985-a4a9-356007d415b6",
+        "silk_over_copper|33020000|56118000|93ae67af-fc49-453e-96f2-e315894b5942|3711b86e-9876-4206-be3a-e72db96dda5e",
+        "silk_over_copper|33020000|66560000|93ae67af-fc49-453e-96f2-e315894b5942|df27fbca-a2f3-4f91-a150-00d02d42a111",
+        "silk_over_copper|33020000|81260000|93ae67af-fc49-453e-96f2-e315894b5942|aa7cb1be-1fbc-4010-859d-50ad02b98fc7"
+      ],
       "meta": {
         "version": 2
       },
