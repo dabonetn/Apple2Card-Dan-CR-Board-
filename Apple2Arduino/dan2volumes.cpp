@@ -154,6 +154,12 @@ bool vol_open_drive_file(void)
   if (current_filenum == request.filenum)
     return true;
 
+  if (FILE_VALID(&current_file)) // any open file?
+  {
+    f_close(&current_file);
+    current_filenum = INVALID_FILENUM;
+  }
+
   // open file
   vol_filename[vol_filename_length  ] = hex_digit(request.filenum >> 4);
   vol_filename[vol_filename_length+1] = hex_digit(request.filenum & 0x0F);
