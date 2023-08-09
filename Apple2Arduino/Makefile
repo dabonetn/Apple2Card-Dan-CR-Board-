@@ -49,7 +49,7 @@ $(HEX_FILE): $(SOURCES) fwversion.h bin bootloaders/$(BOOTLOADER)
 	@cp bin/Apple2Arduino.ino.with_bootloader.hex $@
 
 clean:
-	@rm -f bin/*.eep bin/*.elf bin/*.hex bin/*.bin fwversion.h
+	@rm -f bin/*.eep bin/*.elf bin/*.hex bin/*.bin fwversion.h $(HEX_FILE)
 
 bin:
 	@mkdir -p bin

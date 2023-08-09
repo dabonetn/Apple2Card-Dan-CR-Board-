@@ -4,6 +4,7 @@
 BOOTLOADER     = $(wildcard *.asm)
 BOOTLOADER_H   = $(addprefix bin/,$(BOOTLOADER:.asm=.h))
 BOOTLOADER_BIN = $(addprefix bin/,$(BOOTLOADER:.asm=.bin))
+BL_ARDUINO_H   = $(addprefix ../Apple2Arduino/, $(BOOTLOADER:.asm=.h))
 
 # include file with firmware version
 include ../version.mk
@@ -38,7 +39,7 @@ bin:
 
 clean:
 	@echo "Wiping generated files..."
-	@rm -f bin/*
+	@rm -f bin/* $(BL_ARDUINO_H)
 
 check:
 	@(python3 -V > /dev/null 2> /dev/null) || (echo "ERROR: Python3 installation is required to convert binaries!"; exit 1)
