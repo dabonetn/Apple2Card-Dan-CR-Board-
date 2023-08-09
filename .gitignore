@@ -30,6 +30,7 @@ _autosave-*
 *-rescue.lib
 *-save.pro
 *-save.kicad_pcb
+.bash_history
 
 # Netlist files (exported from Eeschema)
 *.net
