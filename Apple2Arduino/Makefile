@@ -73,7 +73,7 @@ fwversion.h: ../version.mk
 # build and add custom bootloader
 $(HEX_FILE): $(SOURCES) fwversion.h bootloaders/$(BOOTLOADER) | $(DSTDIR)
 	$(Q)arduino-cli compile -b $(BOARD) $(BUILD_PROPERTIES) \
-		--clean --output-dir $(DSTDIR) Apple2Arduino.ino >$(DSTDIR)/build.log || \
+		--clean --output-dir $(DSTDIR) Apple2Arduino.ino > $(DSTDIR)/build.log || \
 		echo Compilation failed. You need at least $$ arduino-cli core install arduino:avr \
 			and $$ arduino-cli lib install Ethernet
 	$(Q)cat $(DSTDIR)/build.log

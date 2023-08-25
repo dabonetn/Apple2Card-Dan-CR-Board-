@@ -190,16 +190,14 @@ void write_eeprom_ip(void)
 void setup_pins(void)
 {
   INITIALIZE_CONTROL_PORT();
+#if (!defined DEBUG_SERIAL)||(defined SOFTWARE_SERIAL)
   DISABLE_RXTX_PINS();
+#endif
   DATAPORT_MODE_RECEIVE();
 }
 
 void setup_serial(void)
 {
-#if (!defined DEBUG_SERIAL)||(defined SOFTWARE_SERIAL)
-  DISABLE_RXTX_PINS();
-#endif
-
 #ifdef DEBUG_SERIAL
  #ifdef SOFTWARE_SERIAL
   softSerial.begin(9600);
