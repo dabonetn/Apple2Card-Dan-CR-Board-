@@ -1,9 +1,10 @@
-; Bootloader v4
+; Bootloader v5
 ; by DL Marks, TC Brehm
 ; - 2 block bootloader (1024 byte)
 ; - improved GUI with top/bottom title bars
 ; - highlighted volume selection
 ; - cursor key controls
+; - IP address configuration (for Wiznet)
 
 ; build for simulator debugging (running without DANII card hardware)
 ;SIM_DEBUG = 1

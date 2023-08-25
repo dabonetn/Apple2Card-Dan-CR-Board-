@@ -1,9 +1,11 @@
-; Bootloader v4
+; Bootloader v6
 ; by DL Marks, TC Brehm
 ; - 2 block bootloader (1024 byte)
 ; - improved GUI with top/bottom title bars
 ; - highlighted volume selection
 ; - cursor key controls
+; - IP address configuration (for Wiznet)
+; - flexible volume selection
 
 ; build for simulator debugging (running without DANII card hardware)
 ;SIM_DEBUG = 1
@@ -99,7 +101,7 @@ START:
 .ENDIF
          LDA #$20        ; JSR instruction
 .IFDEF SIM_DEBUG         ; This is just for debugging, when running the program in a simulator (rather than on hardware).
-         LDA #$60        ; use RTS instead of JSR instruction, so any call for commands just do nothing
+         LDA #$60        ; use RTS instead of JSR instruction, so any command calls just do nothing
 .ENDIF
          STA INSTRUC
          LDA #$60        ; store RTS at $F3
