@@ -78,6 +78,7 @@
 #define RD_DISK             0 // always read disk
 #define RD_FAILSAFE         1 // read disk or boot block, if volume/disk is missing
 #define RD_BOOT_BLOCK       2 // always read boot block
+#define RD_A3_BOOT_BLOCK    3 // always read alternate boot block for Apple /// instead (yay!)
 
 #define EEPROM_INIT    0
 #define EEPROM_SLOT0   1
@@ -326,16 +327,23 @@ uint8_t do_status(void)
 }
 
 #if BOOTPG>1
-void read_bootblock(uint8_t* buf)
+uint8_t read_bootblock(uint8_t rdtype, uint8_t* buf)
 {
   // check if a custom boot program is available on any SD card (with FAT format)
   if ((slot_type[0] == SLOT_TYPE_FAT)||(slot_type[1] == SLOT_TYPE_FAT))
   {
       request.sdslot  = (slot_type[0] == SLOT_TYPE_FAT) ? 0 : 1;
-      request.filenum = 0xff; // use file number 0xff (VOLFF.po)
+      // Use file number 0xff (VOLFF.po) when loading the boot program from an SD card.
+      // For the Apple /// we use VOLA3.po - of course... :)
+      request.filenum = (rdtype == RD_A3_BOOT_BLOCK) ? 0xA3 : 0xff;
       if (vol_read_block(buf) == 0) // success?
-        return;
+        return 0;
   }
+
+  // if the Apple /// bootloader is requested, it has to be loaded from an SD card.
+  // We don't have one integrated into the firmware itself...
+  if (rdtype == RD_A3_BOOT_BLOCK)
+    return PRODOS_NODEV_ERR;
 
   // otherwise return data of builtin boot program
   a2slot = (unit >> 4) & 0x7;
@@ -348,6 +356,7 @@ void read_bootblock(uint8_t* buf)
     else
       buf[i] = 0xff;
   }
+  return 0;
 }
 #endif
 
@@ -360,7 +369,7 @@ void do_read(uint8_t rdtype)
   uint8_t returncode = 0;
 
 #if BOOTPG>1
-  if (rdtype != RD_BOOT_BLOCK)
+  if (rdtype < RD_BOOT_BLOCK) // RD_BOOT_BLOCK || RD_A3_BOOT_BLOCK
 #endif
   {
     calculate_sd_filenum();
@@ -368,12 +377,11 @@ void do_read(uint8_t rdtype)
   }
 
 #if BOOTPG>1
-  if ( (rdtype==RD_BOOT_BLOCK)||
+  if ( (rdtype>=RD_BOOT_BLOCK)||  // RD_BOOT_BLOCK || RD_A3_BOOT_BLOCK
       ((rdtype==RD_FAILSAFE)&&(returncode != 0)))
   {
     // transmit bootpg if requested or volume is missing
-    read_bootblock(buf);
-    returncode = 0;
+    returncode = read_bootblock(rdtype, buf);
   }
 #endif
 
@@ -644,6 +652,8 @@ void do_command(uint8_t cmd)
 #if BOOTPG>1
     case 13+128:
     case 32+128:  do_read(RD_BOOT_BLOCK);
+      break;
+    case 0xA3:    do_read(RD_A3_BOOT_BLOCK);
       break;
 #endif
     case 0xFF: // intentional illegal command always returning an error, just for synchronisation
