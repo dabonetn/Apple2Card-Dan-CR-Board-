@@ -32,7 +32,7 @@
 
 /* Changes for outputting to 82C55 added by Daniel Marks, marked by
    PINDEFS */
-   
+
 #include <Arduino.h>
 
 #include "w5500.h"
@@ -87,7 +87,7 @@ void Wiznet5500::wizchip_read_buf(uint8_t block, uint16_t address, uint8_t* pBuf
         while (READ_IBFA() != 0);
         WRITE_DATAPORT(bt);
         STB_LOW();
-        STB_HIGH(); 
+        STB_HIGH();
       }
       DATAPORT_MODE_RECEIVE();
     } else
@@ -300,13 +300,12 @@ boolean Wiznet5500::begin(const uint8_t *mac_address)
 
 #ifdef PINDEFS
     cli();
-    DDRB |= 0x07;
-    PORTB = 0x07;
+    DISABLE_CS();
     SPCR = _BV(SPE) | _BV(MSTR);
     SPSR = _BV(SPI2X);
-    DDRB |= 0x2F;
-    PORTB = 0x3F;
-    sei(); 
+    DDRB |= CS_ALL | _BV(MOSI) | _BV(SCK);
+    PORTB = CS_ALL | _BV(MOSI) | _BV(MISO) | _BV(SCK);
+    sei();
 #else
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz?
@@ -363,7 +362,7 @@ static void write_length(uint16_t data_len)
 uint16_t Wiznet5500::readFrame(uint8_t *buffer, uint16_t bufsize)
 {
     uint16_t len = getSn_RX_RSR();
-    
+
     if (len > 0)
     {
         uint8_t head[2];
