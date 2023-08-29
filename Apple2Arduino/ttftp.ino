@@ -506,7 +506,7 @@ uint8_t getVolFileNo(char* Data)
     fno |= digit;
     digit = Data[4]; // get the next/lower digit
   }
-  
+
   return fno;
 }
 
@@ -624,7 +624,7 @@ static void ftpInit()
     return;
   }
 
-  Ethernet.init(CS3);
+  Ethernet.init(D_CS3); // used arduino 'digital' pin number here
 
 #ifdef FTP_DEBUG
   Serial.begin(115200);
@@ -654,7 +654,7 @@ static void ftpInit()
   }
 #endif
 
-  // start the servers 
+  // start the servers
   FtpCmdServer.begin();
   FtpDataServer.begin();
 
@@ -670,7 +670,7 @@ void loopTinyFtp(void)
 {
   char buf[FTP_BUF_SIZE];
   static int Throttle = 2000; // first FTP communication attempt after 2seconds (Wiznet is slower than Arduino)
-  
+
   if ((FtpState < 0)||
       ((Throttle != 0)&&((int) (millis()-Throttle) < 0)))
   {
