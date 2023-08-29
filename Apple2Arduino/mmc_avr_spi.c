@@ -11,24 +11,26 @@
 /
 /-------------------------------------------------------------------------*/
 
-#include <Arduino.h>
+//#include <Arduino.h>
+
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "diskio_sdc.h"
 #include "mmc_avr.h"
 #include "pindefs.h"
 
-// set fixed SPI mode
-#define MMC_SPI_MODE() SPCR = _BV(SPE) | _BV(MSTR)
 
 /* Peripheral controls (Platform dependent) */
-#define CS_LOW()		do { PORTB &= (slotno ?  ~0x02 : ~0x04); } while (0) /* Set MMC_CS = low */
-#define	CS_HIGH()		do { PORTB |= 0x07; } while (0) /* Set MMC_CS = high */
+#define CS_LOW()		do { PORTB &= (slotno ?  ~_BV(CS2) : ~_BV(CS)); } while (0) /* Set MMC_CS = low */
+#define	CS_HIGH()		do { PORTB |= CS_ALL; } while (0) /* Set MMC_CS = high */
 #define MMC_CD			(1)	/* Test if card detected.   yes:true, no:false, default:true */
 #define MMC_WP			(0)	/* Test if write protected. yes:true, no:false, default:false */
+// set fixed SPI mode
+#define MMC_SPI_MODE()	do { SPCR = _BV(SPE) | _BV(MSTR); } while(0)
 #define	FCLK_SLOW()		do { SPCR |= (_BV(SPR0)|_BV(SPR1)); } while (0)	/* Set SPI clock for initialization (100-400kHz) */
 #define	FCLK_FAST()		do { SPCR &= ~(_BV(SPR0)|_BV(SPR1)); } while (0)	/* Set SPI clock for read/write (20MHz max) */
-#define PULLUP_OFF()    do { PORTB &= ~0x10; } while (0) 
-#define PULLUP_ON()     do { PORTB |= 0x10; } while (0) 
+#define PULLUP_OFF()    do { PORTB &= ~_BV(MISO); } while (0)
+#define PULLUP_ON()     do { PORTB |= _BV(MISO); } while (0)
 
 
 /*--------------------------------------------------------------------------
@@ -78,14 +80,14 @@ static
 void power_on (void)
 {
 	cli();
-  PORTB = 0x07;
-	DDRB |= 0x07;
-	PORTB = 0x07;
-	SPCR = _BV(SPE) | _BV(MSTR);
+	DISABLE_CS();
+	MMC_SPI_MODE();
 	SPSR = _BV(SPI2X);
-	DDRB |= 0x2F;
-	PORTB = 0x3F;
-	sei(); 
+	DDRB |= CS_ALL | _BV(MOSI) | _BV(SCK);
+	DDRB &= ~_BV(MISO);
+	PORTB |= CS_ALL | _BV(MOSI) | _BV(SCK);
+	PULLUP_ON();
+	sei();
 }
 
 static
@@ -94,8 +96,8 @@ void power_off (void)
 #if 0
 	cli();
 	SPCR = 0;
-	DDRB &= ~0x3F;
-	sei(); 
+	DDRB &= ~(CS_ALL | _BV(MOSI) | _BV(MISO) | _BV(SCK));
+	sei();
 #endif
 }
 
@@ -240,7 +242,7 @@ int rcvr_datablock (
 	BYTE token;
 
     uint16_t intime = millis();
-	
+
 	do {							/* Wait for data packet in timeout of 200ms */
 		token = xchg_spi(0xFF);
 	} while ((token == 0xFF) && (((int16_t)(((uint16_t)millis())-intime)) < 200));
@@ -372,7 +374,7 @@ DSTATUS mmc_disk_initialize (void)
 	ty = 0;
 	if (isidle == 1) {			/* Card is idle now. Now put the card in SPI mode. */
 	    uint16_t intime = millis(), curtime;
-      
+
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* Is the card SDv2? */
 			for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);	/* Get trailing return value of R7 resp */
 
