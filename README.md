@@ -12,7 +12,7 @@ The design uses only five commonly available integrated circuits, the 74HCT08 AN
 ![Apple2Card](pics/DAN2Controller.jpg)
 
 # Gerber Files & PCBs
-You can directly download and send the [Apple2Card-Gerber-v1.1.1.zip](/Apple2Card/Gerber/Apple2Card-Gerber-v1.1.1.zip) to a PCB service like JLCPCB or PCBway, for example.
+You can directly download and send the [Apple2Card-v1.1.1.zip](Apple2Card/Gerber/Apple2Card-v1.1.1.zip) to a PCB service like JLCPCB or PCBway, for example.
 
 ![Apple2Card](Apple2Card/Apple2Card.png)
 
@@ -25,7 +25,7 @@ You can directly download and send the [Apple2Card-Gerber-v1.1.1.zip](/Apple2Car
 
 ## Jumpers
 * **JP1** is the ICSP power jumper. This needs to be closed for ICSP programming on the bench, to power the board when it is **not** plugged in an Apple II slot. Remove this jumper for ICSP programming when the board powered through an Apple II slot. This jumper doesn't matter for normal use.
-* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM, logic ICs and possibly Apple II mainboard. Should be left open if you connect an ICSP programmer to the card. Otherwise can be closed for normal use.
+* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM, logic ICs and possibly Apple II mainboard. Should be left open if you connect an ICSP programmer to the card. Otherwise shoule be closed for normal use.
 * **JP2** is the bank switch jumper. It **always needs to be closed**. It can be hardwired/soldered closed.
 * **JP3**, **JP4**, **JP6**, **JP7**, **JP8**, **JP9**, **JP10** are the programming jumpers. If an EEPROM is used then these need to be closed during onboard programming (see EEPROM.SYSTEM below). However, **these jumpers must remain open for normal use**.
 
@@ -52,7 +52,7 @@ For the memory device of the card an EPROM or EEPROM of 4K/8K/16K/32K can be use
 Only the first 512 bytes of that memory are used. Most of the code (including the boot/configuration program for the card) is stored in the Arduino flash memory - not in the EPROM - so the contents of this memory device are not expected to change often (while the ATMEGA chip's internal flash will be subject to more frequent updates).
 
 ### EPROM Programmer
-The EPROM needs to be programmed with this [eprom.bin](/eprom/bin/eprom.bin) file. It is a 512 byte file that can be burned to the memory chip using a programmer (such as a MiniPro / TL866 plus II).
+The EPROM needs to be programmed with this [eprom.bin](eprom/bin/eprom.bin) file. It is a 512 byte file that can be burned to the memory chip using a programmer (such as a MiniPro / TL866 plus II).
 Again, only the first 512 bytes are used.
 
 ### Onboard Programming
@@ -63,7 +63,7 @@ Jumpers JP2, JP3, JP4, JP6, JP7, JP8, JP9, and JP10 need to be closed when progr
 
 ## ATMEGA328P
 The code for the ATMEGA328P is the Apple2Arduino sketch in the [Apple2Arduino](Apple2Arduino/) directory. It can be built and uploaded using the Arduino environment.
-However, preferably use the provided [Apple2Arduino.ino.with_bootloader.hex](/Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex) hex file, which includes the custom bootloader.
+However, preferably use the provided [Apple2Arduino.ino.with_bootloader.hex](Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex) hex file, which includes the custom bootloader.
 
 Once the binary with the custom bootloader is installed, the Apple II is able to do all further firmware updates of the ATMEGA (no more cables or ICSP programmers required).
 
@@ -125,12 +125,12 @@ Each volume file needs to contain normal Apple II ProDOS volumes (between 140K t
 
 *Note: For backward-compatibility the old file naming scheme "BLKDEVxx.PO" is also still supported. However, this scheme does not support longer file names (no characters are ignored). Also, you cannot mix the naming schemes - not on a single SD card, nor on two SD cards plugged at the same time.*
 
-An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](/volumes/SingleBlankVol.zip).
+An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](volumes/SingleBlankVol.zip).
 
 ## Raw Block Mode
 Alternatively, raw block mode may be used (instead of FAT formatted SD cards). Only the first 512 MB will be used for raw blocks.
 
-To prepare SD cards for raw block mode, use the [BlankVols.zip](/volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
+To prepare SD cards for raw block mode, use the [BlankVols.zip](volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
 
 ## Wide Block Mode
 TBD: Ordinarily, only a maximum of 64 MB is addressable, 32 MB for ProDOS drive 1, and a second 32 MB for ProDOS drive 2.  The program ALLVOLS.SYSTEM allows this limit to be circumvented in ProDOS 8.  For a SD card placed in slot 1, write the image in "BlankVols" or "BlankVolsSlot1"to it, and for a SD card in slot 2, write the image file "BlankVolsSlot2" to it.  When ALLVOLS.SYSTEM is executed, extra volumes may be added from slot 1 or slot 2 depending on if a SD card with block images is present in slot 1 or slot 2.  It is recommended that slot 1 be used for block images and slot 2 be used for FAT FS images.  This way, cards can be swapped in and out of slot 2 with different files transferred from another computer (perhaps using CiderPress) while the boot filesystem in slot 1 stays the same.
@@ -181,7 +181,7 @@ It's recommended to leave out the two resistors R27 and R28 on the controller PC
 LED D11 (just above the J6 header) indicates network activity of the WIZnet adapter.
 
 ## Mounting Bracket
-The [CAD](/CAD) folder contains different STL designs for 3D printed brackets, which can be used to mount the WIZnet Ethernet adapter into the back of an Apple II.
+The [CAD](CAD) folder contains different STL designs for 3D printed brackets, which can be used to mount the WIZnet Ethernet adapter into the back of an Apple II.
 
 ![3D Printed Eth Mount](pics/DAN2EthMount.jpg)
 
@@ -241,7 +241,7 @@ Notice that ProDOS volume names and volume sizes are displayed via FTP. The owne
 
 ## Apple II Ethernet Access
 Alternatively to the FTP support, it is also possible for the Apple II to directly access the WIZnet Ethernet port. There is an extension for the IP65 network stack which adds support for the DAN][Controller interface to the WIZnet adapter.
-See the [dsk](/dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
+See the [dsk](dsk) folder for an example disk with IP65 examples (telnet client, ntp time synchronisation etc).
 
 There is also a variant of **ADTPro** with the updated IP65 stack, supporting the DAN][ controller's Ethernet port - see [here](https://github.com/ThorstenBr/adtproDAN2/releases).
 
