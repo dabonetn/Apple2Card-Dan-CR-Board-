@@ -699,9 +699,9 @@ void no_cards_blink()
     // briefly blink both slot LEDs
     for (uint8_t i=0;i<6;i++)
     {
-      PORTB &= ((i&1) ? ~0x02 : ~0x4);
+      PORTB &= ((i&1) ? ~_BV(CS2) : ~_BV(CS));
       delay(150);
-      PORTB |= 0x06;
+      PORTB |= _BV(CS2) | _BV(CS);
       delay(150);
     }
   }
