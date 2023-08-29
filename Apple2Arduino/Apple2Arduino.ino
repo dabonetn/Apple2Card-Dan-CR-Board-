@@ -713,11 +713,12 @@ void setup()
   // marker for stack/memory overflow detection (we're not using heap anyway).
   __heap_start = 0xBEEF;
 #endif
-
+#ifdef SLAVE_S
+  PORTB |= 1 << SLAVE_S; // Make sure SPI Slave Select has a pullup!
+#endif
   setup_pins();
   setup_serial();
   read_eeprom();
-
   request.sdslot = SDSLOT1;
   vol_check_sdslot_type();
   request.sdslot = SDSLOT2;
@@ -760,7 +761,6 @@ void loop()
     CHECK_MEM(1); // memory overflow check (when enabled)
   }
 #endif
-
   while (READ_OBFA() == 0)
   {
     uint8_t instr = read_dataport();
