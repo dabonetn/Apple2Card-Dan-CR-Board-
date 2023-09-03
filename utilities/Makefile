@@ -23,9 +23,13 @@ AC := java -jar ../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
 
 include ../version.mk
 
-# for direct FTP download: adapt to your needs
-DAN2_FTP_IP := 192.168.4.65
-DAN2_VOL_IMAGE := /sd1/BLKDEV0D.PO
+# optional local file with user environment (i.e. path to Arduino build utilities)
+-include ../localsettings.mk
+
+# For direct FTP download: IP address and volume file for testing
+# => Set these option in your local "../localsettings.mk" to match your test setup.
+# DAN2_FTP_IP    := 192.168.4.65
+# DAN2_VOL_IMAGE := /sd1/VOL0D.PO
 
 DSK_FILE := bin/$(DISK_NAME).dsk
 

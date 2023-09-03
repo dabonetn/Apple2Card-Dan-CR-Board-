@@ -20,6 +20,9 @@
 
 include ../version.mk
 
+# optional local file with user environment (i.e. path to Arduino build utilities)
+-include ../localsettings.mk
+
 SOURCES		:= $(wildcard *.ino *.c *.cpp *.h)
 
 PLATFORM_PATH	:= $(realpath .)
