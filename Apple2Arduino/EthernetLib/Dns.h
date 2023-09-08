@@ -7,6 +7,7 @@
 
 #include "Ethernet.h"
 
+#ifdef FEATURE_DAN_DNS
 class DNSClient
 {
 public:
@@ -36,5 +37,6 @@ protected:
 	uint16_t iRequestId;
 	EthernetUDP iUdp;
 };
+#endif // FEATURE_DAN_DNS
 
 #endif

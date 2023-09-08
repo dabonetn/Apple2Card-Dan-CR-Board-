@@ -25,6 +25,7 @@
 
 int EthernetClient::connect(const char * host, uint16_t port)
 {
+#ifdef FEATURE_DAN_DNS
 	DNSClient dns; // Look up the host first
 	IPAddress remote_addr;
 
@@ -37,6 +38,9 @@ int EthernetClient::connect(const char * host, uint16_t port)
 	dns.begin(Ethernet.dnsServerIP());
 	if (!dns.getHostByName(host, remote_addr)) return 0; // TODO: use _timeout
 	return connect(remote_addr, port);
+#else
+	return 0;
+#endif
 }
 
 int EthernetClient::connect(IPAddress ip, uint16_t port)

@@ -9,7 +9,7 @@
  */
 
 #include <Arduino.h>
-#include "Ethernet.h"
+#include "../Ethernet.h"
 #include "w5100.h"
 
 
@@ -90,6 +90,7 @@ uint8_t W5100Class::init(void)
 
 	if (initialized) return 1;
 
+#if (defined FEATURE_DAN_W5100)||(defined FEATURE_DAN_W5200)
 	// Many Ethernet shields have a CAT811 or similar reset chip
 	// connected to W5100 or W5200 chips.  The W5200 will not work at
 	// all, and may even drive its MISO pin, until given an active low
@@ -99,6 +100,7 @@ uint8_t W5100Class::init(void)
 	// until the reset pulse is ended.  If your hardware has a shorter
 	// reset time, this can be edited or removed.
 	delay(560);
+#endif
 	//Serial.println("w5100 init");
 
 	SPI.begin();
@@ -106,6 +108,7 @@ uint8_t W5100Class::init(void)
 	resetSS();
 	SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
 
+#ifdef FEATURE_DAN_W5200
 	// Attempt W5200 detection first, because W5200 does not properly
 	// reset its SPI state when CS goes high (inactive).  Communication
 	// from detecting the other chips can leave the W5200 in a state
@@ -135,7 +138,9 @@ uint8_t W5100Class::init(void)
 	// Try W5500 next.  WIZnet finally seems to have implemented
 	// SPI well with this chip.  It appears to be very resilient,
 	// so try it after the fragile W5200
-	} else if (isW5500()) {
+	} else
+#endif // FEATURE_DAN_W5200
+	if (isW5500()) {
 		CH_BASE_MSB = 0x10;
 #ifdef ETHERNET_LARGE_BUFFERS
 #if MAX_SOCK_NUM <= 1
@@ -157,12 +162,14 @@ uint8_t W5100Class::init(void)
 			writeSnTX_SIZE(i, 0);
 		}
 #endif
+#ifdef FEATURE_DAN_W5100
 	// Try W5100 last.  This simple chip uses fixed 4 byte frames
 	// for every 8 bit access.  Terribly inefficient, but so simple
 	// it recovers from "hearing" unsuccessful W5100 or W5200
 	// communication.  W5100 is also the only chip without a VERSIONR
 	// register for identification, so we check this last.
-	} else if (isW5100()) {
+	}
+	else if (isW5100()) {
 		CH_BASE_MSB = 0x04;
 #ifdef ETHERNET_LARGE_BUFFERS
 #if MAX_SOCK_NUM <= 1
@@ -183,6 +190,7 @@ uint8_t W5100Class::init(void)
 		writeTMSR(0x55);
 		writeRMSR(0x55);
 #endif
+#endif // FEATURE_DAN_W5100
 	// No hardware seems to be present.  Or it could be a W5200
 	// that's heard other SPI communication if its chip select
 	// pin wasn't high when a SD card or other SPI chip was used.
@@ -216,6 +224,7 @@ uint8_t W5100Class::softReset(void)
 	return 0;
 }
 
+#ifdef FEATURE_DAN_W5100
 uint8_t W5100Class::isW5100(void)
 {
 	chip = 51;
@@ -230,7 +239,9 @@ uint8_t W5100Class::isW5100(void)
 	//Serial.println("chip is W5100");
 	return 1;
 }
+#endif // FEATURE_DAN_W5100
 
+#ifdef FEATURE_DAN_W5200
 uint8_t W5100Class::isW5200(void)
 {
 	chip = 52;
@@ -249,6 +260,7 @@ uint8_t W5100Class::isW5200(void)
 	//Serial.println("chip is W5200");
 	return 1;
 }
+#endif // FEATURE_DAN_W5200
 
 uint8_t W5100Class::isW5500(void)
 {
@@ -275,12 +287,14 @@ W5100Linkstatus W5100Class::getLinkStatus()
 
 	if (!init()) return UNKNOWN;
 	switch (chip) {
+#ifdef FEATURE_DAN_W5200
 	  case 52:
 		SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
 		phystatus = readPSTATUS_W5200();
 		SPI.endTransaction();
 		if (phystatus & 0x20) return LINK_ON;
 		return LINK_OFF;
+#endif
 	  case 55:
 		SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
 		phystatus = readPHYCFGR_W5500();
@@ -296,6 +310,7 @@ uint16_t W5100Class::write(uint16_t addr, const uint8_t *buf, uint16_t len)
 {
 	uint8_t cmd[8];
 
+#ifdef FEATURE_DAN_W5100
 	if (chip == 51) {
 		for (uint16_t i=0; i<len; i++) {
 			setSS();
@@ -306,7 +321,10 @@ uint16_t W5100Class::write(uint16_t addr, const uint8_t *buf, uint16_t len)
 			SPI.transfer(buf[i]);
 			resetSS();
 		}
-	} else if (chip == 52) {
+	} else
+#endif && FEATURE_DAN_W5100
+#ifdef FEATURE_DAN_W5200
+	if (chip == 52) {
 		setSS();
 		cmd[0] = addr >> 8;
 		cmd[1] = addr & 0xFF;
@@ -322,7 +340,9 @@ uint16_t W5100Class::write(uint16_t addr, const uint8_t *buf, uint16_t len)
 		}
 #endif
 		resetSS();
-	} else { // chip == 55
+	} else
+#endif // FEATURE_DAN_W5200
+	{ // chip == 55
 		setSS();
 		if (addr < 0x100) {
 			// common registers 00nn
@@ -387,6 +407,7 @@ uint16_t W5100Class::read(uint16_t addr, uint8_t *buf, uint16_t len)
 {
 	uint8_t cmd[4];
 
+#ifdef FEATURE_DAN_W5100
 	if (chip == 51) {
 		for (uint16_t i=0; i < len; i++) {
 			setSS();
@@ -407,7 +428,10 @@ uint16_t W5100Class::read(uint16_t addr, uint8_t *buf, uint16_t len)
 			#endif
 			resetSS();
 		}
-	} else if (chip == 52) {
+	} else
+#endif
+#ifdef FEATURE_DAN_W5200
+	if (chip == 52) {
 		setSS();
 		cmd[0] = addr >> 8;
 		cmd[1] = addr & 0xFF;
@@ -417,7 +441,9 @@ uint16_t W5100Class::read(uint16_t addr, uint8_t *buf, uint16_t len)
 		memset(buf, 0, len);
 		SPI.transfer(buf, len);
 		resetSS();
-	} else { // chip == 55
+	} else
+#endif //FEATURE_DAN_W5200
+	{ // chip == 55
 		setSS();
 		if (addr < 0x100) {
 			// common registers 00nn

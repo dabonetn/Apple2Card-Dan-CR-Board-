@@ -28,6 +28,7 @@
 
 #include <Arduino.h>
 #include "Ethernet.h"
+#ifdef FEATURE_DAN_UDP
 #include "Dns.h"
 #include "utility/w5100.h"
 
@@ -188,3 +189,4 @@ uint8_t EthernetUDP::beginMulticast(IPAddress ip, uint16_t port)
 	_remaining = 0;
 	return 1;
 }
+#endif // FEATURE_DAN_UDP

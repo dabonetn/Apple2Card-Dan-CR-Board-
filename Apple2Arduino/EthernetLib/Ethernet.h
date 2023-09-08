@@ -33,10 +33,17 @@
 // up to 4 sockets.  W5200 & W5500 can have up to 8 sockets.  Several bytes
 // of RAM are used for each socket.  Reducing the maximum can save RAM, but
 // you are limited to fewer simultaneous connections.
+#if 1
+// we always only use 4 sockets for DANII. (And we're actually only using 2 so far...)
+#define MAX_SOCK_NUM 4
+
+#else
 #if defined(RAMEND) && defined(RAMSTART) && ((RAMEND - RAMSTART) <= 2048)
 #define MAX_SOCK_NUM 4
 #else
 #define MAX_SOCK_NUM 8
+#endif
+
 #endif
 
 // By default, each socket uses 2K buffers inside the WIZnet chip.  If
@@ -69,18 +76,26 @@ enum EthernetHardwareStatus {
 class EthernetUDP;
 class EthernetClient;
 class EthernetServer;
+#ifdef FEATURE_DAN_DHCP
 class DhcpClass;
+#endif
 
 class EthernetClass {
 private:
+#ifdef FEATURE_DAN_DNS
 	static IPAddress _dnsServerAddress;
+#endif
+#ifdef FEATURE_DAN_DHCP
 	static DhcpClass* _dhcp;
+#endif
 public:
+#ifdef FEATURE_DAN_DHCP
 	// Initialise the Ethernet shield to use the provided MAC address and
 	// gain the rest of the configuration through DHCP.
 	// Returns 0 if the DHCP configuration failed, and 1 if it succeeded
 	static int begin(uint8_t *mac, unsigned long timeout = 60000, unsigned long responseTimeout = 4000);
 	static int maintain();
+#endif
 	static EthernetLinkStatus linkStatus();
 	static EthernetHardwareStatus hardwareStatus();
 
@@ -91,17 +106,18 @@ public:
 	static void begin(uint8_t *mac, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress subnet);
 	static void init(uint8_t sspin = 10);
 
+#ifdef FEATURE_DAN_DNS
 	static void MACAddress(uint8_t *mac_address);
 	static IPAddress localIP();
 	static IPAddress subnetMask();
 	static IPAddress gatewayIP();
 	static IPAddress dnsServerIP() { return _dnsServerAddress; }
-
-	void setMACAddress(const uint8_t *mac_address);
 	void setLocalIP(const IPAddress local_ip);
+	void setMACAddress(const uint8_t *mac_address);
 	void setSubnetMask(const IPAddress subnet);
 	void setGatewayIP(const IPAddress gateway);
 	void setDnsServerIP(const IPAddress dns_server) { _dnsServerAddress = dns_server; }
+#endif
 	void setRetransmissionTimeout(uint16_t milliseconds);
 	void setRetransmissionCount(uint8_t num);
 
@@ -149,6 +165,7 @@ extern EthernetClass Ethernet;
 
 #define UDP_TX_PACKET_MAX_SIZE 24
 
+#ifdef FEATURE_DAN_UDP
 class EthernetUDP : public UDP {
 private:
 	uint16_t _port; // local port to listen on
@@ -207,7 +224,7 @@ public:
 	virtual uint16_t remotePort() { return _remotePort; };
 	virtual uint16_t localPort() { return _port; }
 };
-
+#endif // FEATURE_DAN_UDP
 
 
 
@@ -269,7 +286,7 @@ public:
 	static uint16_t server_port[MAX_SOCK_NUM];
 };
 
-
+#ifdef FEATURE_DAN_DHCP
 class DhcpClass {
 private:
 	uint32_t _dhcpInitialTransactionId;
@@ -315,9 +332,6 @@ public:
 	int beginWithDHCP(uint8_t *, unsigned long timeout = 60000, unsigned long responseTimeout = 4000);
 	int checkLease();
 };
+#endif // FEATURE_DAN_DHCP
 
-
-
-
-
-#endif
+#endif // ethernet_h_

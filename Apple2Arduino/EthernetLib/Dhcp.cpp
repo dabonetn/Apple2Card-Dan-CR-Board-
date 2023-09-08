@@ -1,8 +1,8 @@
 // DHCP Library v0.3 - April 25, 2009
 // Author: Jordan Terrell - blog.jordanterrell.com
-
 #include <Arduino.h>
 #include "Ethernet.h"
+#ifdef FEATURE_DAN_DHCP
 #include "Dhcp.h"
 #include "utility/w5100.h"
 
@@ -431,3 +431,4 @@ void DhcpClass::printByte(char * buf, uint8_t n )
 		*str-- = c < 10 ? c + '0' : c + 'A' - 10;
 	} while(n);
 }
+#endif // FEATURE_DAN_DHCP

@@ -299,8 +299,12 @@ private:
   static uint8_t chip;
   static uint8_t ss_pin;
   static uint8_t softReset(void);
+#ifdef FEATURE_DAN_W5100
   static uint8_t isW5100(void);
+#endif
+#ifdef FEATURE_DAN_W5200
   static uint8_t isW5200(void);
+#endif
   static uint8_t isW5500(void);
 
 public:

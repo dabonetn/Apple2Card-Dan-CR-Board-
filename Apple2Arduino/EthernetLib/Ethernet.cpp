@@ -23,7 +23,11 @@
 #include "utility/w5100.h"
 #include "Dhcp.h"
 
+#ifdef FEATURE_DAN_DNS
 IPAddress EthernetClass::_dnsServerAddress;
+#endif
+
+#ifdef FEATURE_DAN_DHCP
 DhcpClass* EthernetClass::_dhcp = NULL;
 
 int EthernetClass::begin(uint8_t *mac, unsigned long timeout, unsigned long responseTimeout)
@@ -53,6 +57,7 @@ int EthernetClass::begin(uint8_t *mac, unsigned long timeout, unsigned long resp
 	}
 	return ret;
 }
+#endif // FEATURE_DAN_DHCP
 
 void EthernetClass::begin(uint8_t *mac, IPAddress ip)
 {
@@ -87,7 +92,9 @@ void EthernetClass::begin(uint8_t *mac, IPAddress ip, IPAddress dns, IPAddress g
 	W5100.setGatewayIp(gateway.raw_address());
 	W5100.setSubnetMask(subnet.raw_address());
 	SPI.endTransaction();
+#ifdef FEATURE_DAN_DNS
 	_dnsServerAddress = dns;
+#endif
 }
 
 void EthernetClass::init(uint8_t sspin)
@@ -115,6 +122,7 @@ EthernetHardwareStatus EthernetClass::hardwareStatus()
 	}
 }
 
+#ifdef FEATURE_DAN_DHCP
 int EthernetClass::maintain()
 {
 	int rc = DHCP_CHECK_NONE;
@@ -142,8 +150,9 @@ int EthernetClass::maintain()
 	}
 	return rc;
 }
+#endif // FEATURE_DAN_DHCP
 
-
+#ifdef FEATURE_DAN_DNS
 void EthernetClass::MACAddress(uint8_t *mac_address)
 {
 	SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
@@ -208,6 +217,7 @@ void EthernetClass::setGatewayIP(const IPAddress gateway)
 	W5100.setGatewayIp(ip.raw_address());
 	SPI.endTransaction();
 }
+#endif
 
 void EthernetClass::setRetransmissionTimeout(uint16_t milliseconds)
 {
@@ -225,12 +235,13 @@ void EthernetClass::setRetransmissionCount(uint8_t num)
 }
 
 
-
-
-
-
-
-
-
-
 EthernetClass Ethernet;
+
+// we just inline everything
+#include "utility/w5100.cpp"
+#include "EthernetServer.cpp"
+#include "EthernetClient.cpp"
+#include "EthernetUdp.cpp"
+#include "socket.cpp"
+#include "Dns.cpp"
+#include "Dhcp.cpp"

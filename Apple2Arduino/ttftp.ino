@@ -23,9 +23,19 @@
 #include "config.h"
 #include "fwversion.h"
 #include "Apple2Arduino.h"
-#include <Ethernet.h>
 
 #ifdef USE_FTP
+
+#ifdef FEATURE_CUSTOM_ETHERNET_LIBRARY
+// We use a customized Ethernet library - forked from the original sources.
+// This saves a lot of memory, since we can remove a lot of unused stuff.
+// And we simply inline the entire Ethernet driver sources... :)
+// Easier than creating a library, explaining people how to add a custom library, keeping the custom library consistent etc etc...
+#include "EthernetLib/Ethernet.cpp"
+#else
+// use stock Arduino library. Needs a lot more memory. May still be useful for future comparisons.
+#include <Ethernet.h>
+#endif
 
 //#define FTP_DEBUG 1
 
