@@ -278,6 +278,12 @@ uint8_t W5100Class::isW5500(void)
 	//Serial.println(ver);
 	if (ver != 4) return 0;
 	//Serial.println("chip is W5500");
+
+	// also trigger a PHY reset, so the physical Ethernet connection is re-established/auto-negotiated
+	writePHYCFGR_W5500(0x38); //b00111000: assert PHY RESET
+	delay(1); // delay 1ms (more than enough)
+	writePHYCFGR_W5500(0xB8); //b10111000: clear PHY RESET, enable auto-negotiation
+
 	return 1;
 }
 
