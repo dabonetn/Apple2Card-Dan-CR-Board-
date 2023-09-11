@@ -679,7 +679,7 @@ static void ftpInit()
 void loopTinyFtp(void)
 {
   char buf[FTP_BUF_SIZE];
-  static int Throttle = 2000; // first FTP communication attempt after 2seconds (Wiznet is slower than Arduino)
+  static int Throttle = 1000; // first FTP communication attempt after 1 second (Wiznet is slower than Arduino)
 
   if ((FtpState < 0)||
       ((Throttle != 0)&&((int) (millis()-Throttle) < 0)))
