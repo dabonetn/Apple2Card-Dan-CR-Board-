@@ -40,7 +40,7 @@ clean:
 	make -C utilities $@
 
 release:
-	- rm $(ZIP_FILE)
+	- rm -f $(ZIP_FILE)
 	@zip $(ZIP_FILE) eprom/bin/eprom.bin $(addprefix dsk/,$(DISK_FILES)) $(HEX_FILE) $(UTILS)
 
 ftp:

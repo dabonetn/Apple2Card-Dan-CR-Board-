@@ -1,9 +1,8 @@
-Sketch uses 30390 bytes (94%) of program storage space. Maximum is 32256 bytes.
-Global variables use 1006 bytes (49%) of dynamic memory, leaving 1042 bytes for local variables. Maximum is 2048 bytes.
+Sketch uses 26302 bytes (81%) of program storage space. Maximum is 32256 bytes.
+Global variables use 902 bytes (44%) of dynamic memory, leaving 1146 bytes for local variables. Maximum is 2048 bytes.
 
 [92mUsed library[0m [92mVersion[0m [90mPath[0m                                                                       
 [93mEEPROM[0m       2.0     [90m/home/brehm/.arduino15/packages/arduino/hardware/avr/1.8.6/libraries/EEPROM[0m
-[93mEthernet[0m     2.0.2   [90m/home/brehm/Arduino/libraries/Ethernet[0m                                     
 [93mSPI[0m          1.0     [90m/home/brehm/.arduino15/packages/arduino/hardware/avr/1.8.6/libraries/SPI[0m   
 
 [92mUsed platform[0m [92mVersion[0m [90mPath[0m                                                      
