@@ -69,22 +69,23 @@ EthernetClient FtpDataClient;
 /* Supported FTP commands **********************************************************************************/
 /* FTP Command IDs*/
 #define FTP_CMD_USER  0
-#define FTP_CMD_SYST  1
-#define FTP_CMD_CWD   2
-#define FTP_CMD_TYPE  3
-#define FTP_CMD_QUIT  4
-#define FTP_CMD_PASV  5
-#define FTP_CMD_LIST  6
-#define FTP_CMD_CDUP  7
-#define FTP_CMD_RETR  8
-#define FTP_CMD_STOR  9
-#define FTP_CMD_PWD  10
+#define FTP_CMD_PASS  1
+#define FTP_CMD_SYST  2
+#define FTP_CMD_CWD   3
+#define FTP_CMD_TYPE  4
+#define FTP_CMD_QUIT  5
+#define FTP_CMD_PASV  6
+#define FTP_CMD_LIST  7
+#define FTP_CMD_CDUP  8
+#define FTP_CMD_RETR  9
+#define FTP_CMD_STOR 10
+#define FTP_CMD_PWD  11
 
 // offset of the PRODOS volume header
 #define PRODOS_VOLUME_HEADER   0x400
 
 /* Matching FTP Command strings (4byte per command) */
-const char FtpCommandList[] PROGMEM = "USER" "SYST" "CWD " "TYPE" "QUIT" "PASV" "LIST" "CDUP" "RETR" "STOR" "PWD\x00";
+const char FtpCommandList[] PROGMEM = "USER" "PASS" "SYST" "CWD " "TYPE" "QUIT" "PASV" "LIST" "CDUP" "RETR" "STOR" "PWD\x00";
                                        //"RNFR" "RNTO" "EPSV SIZE DELE MKD RMD"
 
 /* Data types *********************************************************************************************/
@@ -110,6 +111,9 @@ const char FTP_BAD_FILENAME[]     PROGMEM = "Bad filename";
 const char FTP_FILE_ERR[]         PROGMEM = "I/O error";
 const char FTP_DAN2[]             PROGMEM = "DAN][";
 const char FTP_BYE[]              PROGMEM = "Bye.";
+#ifdef FTP_PASSWORD
+const char FTP_NEED_PASSWORD[]    PROGMEM = "Need password";
+#endif
 const char FTP_OK[]               PROGMEM = "Ok";
 const char FTP_FAILED[]           PROGMEM = "Failed";
 
@@ -136,14 +140,18 @@ extern int __heap_start, *__brkval;
 #endif
 
 // simple string compare - avoiding more expensive compare in stdlib
-bool strMatch(const char* str1, const char* str2)
+// returns:
+//   0 - no match
+//   1 - exact match (strings identical)
+//   2 - prefix match (str1 is a prefix of str2)
+uint8_t strMatch(const char* str1, const char* str2)
 {
-  do
+  while (*str1 != 0)
   {
-    if (*str1 != *(str2++))
-      return false;
-  } while (*(str1++)!=0);
-  return true;
+    if (*(str1++) != *(str2++))
+      return 0; // no match
+  }
+  return (*str2 == 0) ? 1 : 2; // exact match vs prefix matches
 }
 
 // copy a string from PROGMEM to a RAM buffer
@@ -212,6 +220,9 @@ void ftpSendReply(char* buf, uint16_t code)
     case 215: msg = FTP_DAN2;break;
     case 220: msg = FTP_WELCOME;break;
     case 221: msg = FTP_BYE;break;
+#ifdef FTP_PASSWORD
+    case 331: msg = FTP_NEED_PASSWORD;break;
+#endif
     case 451: msg = FTP_FILE_ERR;break;
     case 550: msg = FTP_NO_FILE;break;
     case 552: msg = FTP_TOO_LARGE;break;
@@ -527,21 +538,44 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
   CHECK_MEM(1100);
   switch(CmdId)
   {
-    case FTP_CMD_USER: ReplyCode = 230; break; // Logged in.
+    case FTP_CMD_USER:
+#ifdef FTP_USER
+	if (1 != strMatch(FTP_USER, Data))
+	{
+		ReplyCode = 530; // denied
+	}
+	else
+#endif
+	{
+#ifdef FTP_PASSWORD
+            ReplyCode = 331; // need password
+#else
+            ReplyCode = 230; // Logged in.
+#endif
+	}
+        break;
+#ifdef FTP_PASSWORD
+    case FTP_CMD_PASS:
+        if (1 != strMatch(FTP_PASSWORD, Data))
+            ReplyCode = 530; // denied
+        else
+            ReplyCode = 230; // Logged in.
+        break;
+#endif
     case FTP_CMD_SYST: ReplyCode = 215; break; // Report sys name
     case FTP_CMD_CWD:
       // change directory: we only support the root directory and SD1+SD2
       ReplyCode = 250; // file action OK
-      if ((strMatch(Data, ".."))||(strMatch(Data, "/")))
+      if ((strMatch("..", Data)==1)||(strMatch("/", Data)==1))
         Ftp.Directory = DIR_ROOT;
       else
       {
         if (Data[0]=='/')
           Data++;
-        if (strMatch(Data, "SD1"))
+        if (strMatch("SD1", Data)==1)
           Ftp.Directory = DIR_SDCARD1;
         else
-        if (strMatch(Data, "SD2"))
+        if (strMatch("SD2", Data)==1)
           Ftp.Directory = DIR_SDCARD2;
         else
           ReplyCode = 550; // directory 'not found'...

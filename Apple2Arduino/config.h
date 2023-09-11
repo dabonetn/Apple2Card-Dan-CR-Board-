@@ -45,6 +45,16 @@
 // FTP data port can be any port, but is normally port 20
 #define FTP_DATA_PORT    20
 
+// restrict FTP login to a specific user
+// (Currently 7 bytes only and only upper case letters...
+//  Will be improved and will be run-time configurable some day. For now, this has to do...)
+//#define FTP_USER "DAN"
+
+// restrict FTP login to a specific password (7 bytes only)
+// (Currently 7 bytes only and only upper case letters...
+//  Will be improved and will be run-time configurable some day. For now, this has to do...)
+//#define FTP_PASSWORD "***"
+
 /**********************************************************************************
  MISCELLANEOUS SETTINGS
  *********************************************************************************/
