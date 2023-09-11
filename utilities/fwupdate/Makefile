@@ -22,7 +22,7 @@ include ../../version.mk
 
 ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
 
-all: bin/FWUPDATE.SYSTEM
+all: bin bin/FWUPDATE.SYSTEM
 
 # build ProDOS executable
 bin/FWUPDATE.SYSTEM: bin/fwupdate.o bin/dan2stk500.o

@@ -21,7 +21,7 @@
 # AppleCommander
 AC := java -jar ../../bootpg/tools/AppleCommander-1.3.5.13-ac.jar
 
-all: bin/IPCONFIG.SYSTEM
+all: bin bin/IPCONFIG.SYSTEM
 
 # build ProDOS executable
 bin/IPCONFIG.SYSTEM: bin/IPCONFIG.o bin/dan2if.o
@@ -43,3 +43,5 @@ clean:
 	@echo "Clean up..."
 	@rm -f bin/*
 
+bin:
+	- mkdir bin
