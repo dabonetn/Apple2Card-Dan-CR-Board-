@@ -125,7 +125,6 @@ struct
   uint8_t ParamBytes;   // FTP command: current number of received parameter bytes
   uint8_t CmdId;        // current FTP command
   uint8_t Directory;    // current working directory
-  uint8_t _file[2];     // remembered original configuration
   char    CmdData[8];   // must just be large enough to hold file names (just for the first 8 bytes of 8.3 filenames)
 } Ftp;
 
@@ -505,10 +504,7 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
 // check the requested file name - and get the volume file number
 uint8_t getVolFileNo(char* Data)
 {
-  uint8_t digit = Data[3]; // get the first digit
-  Data[3] = 0; // only check the first 3 bytes
-
-  if (!strMatch(Data, "VOL"))
+  if (2 != strMatch("VOL", Data)) // not a prefix match?
   {
     return 255;
   }
@@ -516,6 +512,7 @@ uint8_t getVolFileNo(char* Data)
   uint8_t fno = 0;
   for (uint8_t i=0;i<2;i++)
   {
+    uint8_t digit = Data[3+i]; // get the digit
     fno <<= 4;
     if ((digit>='0')&&(digit<='9'))
       digit -= '0';
@@ -525,7 +522,6 @@ uint8_t getVolFileNo(char* Data)
     else
       return 255; // invalid file number
     fno |= digit;
-    digit = Data[4]; // get the next/lower digit
   }
 
   return fno;
