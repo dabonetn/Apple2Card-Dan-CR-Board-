@@ -24,8 +24,8 @@ freely, subject to the following restrictions:
 #ifndef _PINDEFS_H
 #define _PINDEFS_H
 
-#define DAN_328P  0
-#define DAN_644P  1
+#define DAN_328P  3
+#define DAN_644P  4
 
 #if defined(__AVR_ATmega328P__)
 #define CS     2    // PB2

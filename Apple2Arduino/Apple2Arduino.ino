@@ -30,6 +30,7 @@
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
 #include "Apple2Arduino.h"
+#include "fwversion.h"
 #include "diskio_sdc.h"
 #include "mmc_avr.h"
 #include "ff.h"
@@ -607,6 +608,51 @@ void do_get_ip_config(void)
 }
 #endif
 
+/* Obtain firmware version and type information
+   Uses standard ProDOS reply format with a 512byte block.
+
+   Format of the returned 512 byte block:
+    Offset   Usage
+    0x00     Firmware major version (X._._)
+    0x01     Firmware minor version (_.X._)
+    0x02     Firmware maintenance version (_._.X)
+    0x03     DAN][ board/hardware type: 0x3=standard ATmega328p, 0x4=ATmega644p, ...
+    0x04     Firmware feature flags (see below)
+    0x05     reserved (0)
+    ...      reserved (0)
+    0x1ff    reserver (0)
+*/
+void do_version(void)
+{
+    write_dataport(0x00); // OK. Expect 512 data bytes...
+
+    write_dataport(FW_VERSION_MAJOR);  // firmware major version
+    write_dataport(FW_VERSION_MINOR);  // firmware minor version
+    write_dataport(FW_VERSION_MAINT);  // firmware maintenance version
+
+    write_dataport(DAN_CARD);          // DAN][ hardware type: 0x3=ATmega328p, 0x4=ATmega644p
+
+    {
+      uint8_t FwFlags = 0x00;
+#ifdef USE_RAW_DISK
+      FwFlags |= 0x80;
+#endif
+#ifdef USE_FAT_DISK
+      FwFlags |= 0x40;
+#endif
+#ifdef USE_ETHERNET
+      FwFlags |= 0x20;
+#endif
+#ifdef USE_FTP
+      FwFlags |= 0x10;
+#endif
+      // flags 8,4,2,1 reserved for future features
+      write_dataport(FwFlags);
+    }
+
+    write_zeros(512-5);
+}
+
 void do_command(uint8_t cmd)
 {
   if (cmd == 0xac)
@@ -617,23 +663,25 @@ void do_command(uint8_t cmd)
 #endif
   switch (cmd)
   {
-    case 0:    do_status();
+    case 0x00: do_status();
       break;
-    case 1:    do_read(RD_DISK); // normal read
+    case 0x01: do_read(RD_DISK); // normal read
       break;
-    case 2:    do_write();
+    case 0x02: do_write();
       break;
-    case 3:    do_format();
+    case 0x03: do_format();
       break;
-    case 4:
-    case 6:
-    case 7:
-    case 8:    do_set_volume(cmd);
+    case 0x04:
+    case 0x06:
+    case 0x07:
+    case 0x08: do_set_volume(cmd);
       break;
-    case 5:
-    case 9:    do_get_volume(cmd);
+    case 0x05:
+    case 0x09: do_get_volume(cmd);
       break;
-    case 10:   do_read(RD_FAILSAFE); // failsafe read
+    case 0x0A: do_read(RD_FAILSAFE); // failsafe read
+      break;
+    case 0x0B: do_version();
       break;
 #ifdef USE_ETHERNET
     case 0x10: do_initialize_ethernet();
