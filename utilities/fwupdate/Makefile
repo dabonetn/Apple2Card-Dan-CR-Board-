@@ -20,7 +20,7 @@
 
 include ../../version.mk
 
-ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex
+ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 
 all: bin bin/FWUPDATE.SYSTEM
 

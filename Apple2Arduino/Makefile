@@ -32,6 +32,9 @@ SOURCES		:= $(wildcard *.ino *.c *.cpp *.h)
 PLATFORM_PATH	:= $(realpath .)
 BUILD_PROPERTIES := --build-property "runtime.platform.path=$(PLATFORM_PATH)"
 
+# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA_TYPE=328P' or 'make ATMEGA_TYPE=644P')
+ATMEGA_TYPE ?= 328P
+
 # Allow verbose make using $ make V=1
 ifeq ($(V),1)
 Q 		:=
@@ -39,30 +42,38 @@ else
 Q 		:= @
 endif
 
+
+# clear variable (used as a check if a valid ATMEGA_TYPE was selected)
+DSTDIR :=
+
 # Bootloaders are located at:
 # https://github.com/ThorstenBr/MiniCoreDAN2Controller.git
-# X4=1
-ifeq ($(X4),)
+ifeq ($(strip $(ATMEGA_TYPE)),328P)
 DSTDIR		:= bin-328p
 BOARD		:= arduino:avr:uno
-HEX_FILE	:= Apple2Arduino.ino.with_bootloader.hex
+HEX_FILE	:= Apple2Arduino.ino.328p.with_bootloader.hex
 # Override default Arduino Uno settings and provide a custom bootloader
 # (must be stored in a "bootloaders" subdirectory, since that's hardcoded in the Arduino environment)
 BOOTLOADER	:= optiboot_atmega328p_DANII_16000000L.hex
 BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
-else
+endif
+
+ifeq ($(strip $(ATMEGA_TYPE)),644P)
 # this requires external 'core' libraries for the Atmega644
 # wget http://www.leonardomiliani.com/repository/package_leonardomiliani.com_index.json
 # mv package_leonardomiliani.com_index.json ~/.arduino15/
 # arduino-cli --additional-urls package_leonardomiliani.com_index.json core install megax4:avr
 DSTDIR		:= bin-644p
-HEX_FILE	:= Apple2Arduino.ino.644.with_bootloader.hex
+HEX_FILE	:= Apple2Arduino.ino.644p.with_bootloader.hex
 BOARD		:= megax4:avr:atmegax4:cpu=644_16b
-
 # cd MiniCoreDAN2Controller/avr/bootloaders/optiboot_flash
 # make atmega644p AVR_FREQ=16000000L DANII=1 GCCROOT=
 BOOTLOADER	:= optiboot_flash_atmega644p_UART_DANII_16000000L_NOLED.hex
 BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
+endif
+
+ifeq ($(DSTDIR),)
+  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA_TYPE)'. Currently supported types: '328P' or '644P'.)
 endif
 
 # set localisation to default, so arduino-cli log output does not depend on system language, but is always in english
@@ -70,7 +81,10 @@ export LC_ALL:=C
 
 .PHONY: all build
 
-all: build
+all: $(DSTDIR) build
+
+DSTDIR:
+	- mkdir $(DSTDIR)
 
 build: $(DSTDIR)/CHECKSETUP $(HEX_FILE)
 

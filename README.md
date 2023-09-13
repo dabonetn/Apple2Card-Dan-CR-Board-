@@ -63,7 +63,7 @@ Jumpers JP2, JP3, JP4, JP6, JP7, JP8, JP9, and JP10 need to be closed when progr
 
 ## ATMEGA328P
 The code for the ATMEGA328P is the Apple2Arduino sketch in the [Apple2Arduino](Apple2Arduino/) directory. It can be built and uploaded using the Arduino environment.
-However, preferably use the provided [Apple2Arduino.ino.with_bootloader.hex](Apple2Arduino/Apple2Arduino.ino.with_bootloader.hex) hex file, which includes the custom bootloader.
+However, preferably use the provided [Apple2Arduino.ino.328p.with_bootloader.hex](Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex) hex file, which includes the custom bootloader.
 
 Once the binary with the custom bootloader is installed, the Apple II is able to do all further firmware updates of the ATMEGA (no more cables or ICSP programmers required).
 
@@ -79,7 +79,7 @@ The hfuse setting activates the use of the bootloader.
 You can program the ATMEGA328P using a programmer (such as a TL866 plus II). The project contains the matching ".hex" and "fuses.cfg" file for programming:
 
 * `cd Apple2Arduino`
-* `minipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.with_bootloader.hex -f ihex -e`
+* `minipro -p 'ATMEGA328P@DIP28' -c code -w Apple2Arduino.ino.328p.with_bootloader.hex -f ihex -e`
 * `minipro -p 'ATMEGA328P@DIP28' -c config -w fuses.cfg`
 
 ### ICSP Programmer
@@ -91,7 +91,7 @@ Any 5V Ardunio board can be ued as an ICSP programmer: simply upload the "Arduin
 A command-line for programming the fuses and bootloader with "avrdude" is:
 
 * `cd Apple2Arduino`
-* `avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:Apple2Arduino.ino.with_bootloader.hex`
+* `avrdude -c avrisp -p m328p -P /dev/ttyUSB0 -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m -Uflash:w:Apple2Arduino.ino.328p.with_bootloader.hex`
 
 You may need to adapt "avrisp" and the "/dev/ttyUSB0" port to match your programmer device. The "avrisp" matches the ArduinoISP (e.g. an Arduino Uno board programmed to be an ISP).
 
