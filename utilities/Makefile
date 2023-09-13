@@ -33,11 +33,13 @@ include ../version.mk
 
 DSK_FILE := bin/$(DISK_NAME).dsk
 
+ATMEGA_TYPE ?= 328P
+
 TARGETS := all clean
 
 all: bin
 	make -C eeprom $@
-	make -C fwupdate $@
+	make -C fwupdate $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
 	make -C ipconfig $@
 	make -C allvols $@
 	make bin/$(DISK_NAME).po

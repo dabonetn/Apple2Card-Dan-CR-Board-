@@ -3,13 +3,22 @@
 
 .setcpu		"6502"
 
+; export some labels
+.export FW_START
+.export FW_END
+.export FW_SIZE_BYTES
+.export FW_SIZE_WORDS
 
 .IFDEF ATMEGA328P
+  ; page size is given in words (1word = 2bytes)
   PAGE_SIZE =   64
+  ; page where the bootloader begins (not to be touched)
   END_PAGE  =  $3f
 .ELSE
 .IFDEF ATMEGA644P
+  ; page size is given in words (1word = 2bytes)
   PAGE_SIZE =  128
+  ; page where the bootloader begins (not to be touched)
   END_PAGE  =  $7e
 .ELSE
  .ERROR No valid platform defined!
@@ -192,7 +201,7 @@ verify:
     jsr  doSTKverifyBlock  ; read and verify data
     clc                    ; increase word address
     lda  adrlo
-    adc  #PAGE_SIZE        ; 64words = 128 bytes (328P); 128=w (644P)
+    adc  #PAGE_SIZE        ; 64words = 128 bytes (328P); 128W=256B (644P)
     sta  adrlo
     bcc  verify
     inc  adrhi
@@ -200,7 +209,9 @@ verify:
     jsr  PRHEX2
     dec  CH
     dec  CH
-    jmp  verify
+    lda  adrhi
+    cmp  #END_PAGE         ; never consider addresses matching or beyond END_PAGE (where the protected bootloader is)
+    bmi  verify
 _verify_done:
     rts
 
@@ -220,7 +231,9 @@ program:
     jsr  PRHEX2
     dec  CH
     dec  CH
-    jmp  program
+    lda  adrhi
+    cmp  #END_PAGE         ; never consider addresses matching or beyond END_PAGE (where the protected bootloader is)
+    bmi  program
 _program_done:
     rts
 
@@ -244,12 +257,12 @@ doSTKwriteBlock:
     jmp  doSTKInsyncOk
 
 doSTKrwCmd:
-    jsr  writebyte   ; send command byte
-    lda  #>(PAGE_SIZE * 2)
-    jsr  writebyte   ; send length (128 byte, or 256 bytes)
+    jsr  writebyte         ; send command byte
+    lda  #>(PAGE_SIZE * 2) ; convert words to bytes
+    jsr  writebyte         ; send length (128 byte, or 256 bytes)
     lda  #<(PAGE_SIZE * 2)
     jsr  writebyte
-    lda  #'F'        ; send 'F'lash target
+    lda  #'F'              ; send 'F'lash target
     jmp  writebyte
 
 doSTKverifyBlock:
@@ -284,10 +297,10 @@ doSTKloadAddress:
     ; first, compare the AVR address we want with the maximum (in words)
     ; and set adrhi to 0xff, and exit, if we reached the end
     lda  adrhi
-    cmp  #>AVR_SIZE
+    cmp  #>FW_SIZE_WORDS
     bne  _no_overflow
     lda  adrlo
-    cmp  #<AVR_SIZE
+    cmp  #<FW_SIZE_WORDS
     bne  _no_overflow
     lda  #$ff
     sta  adrhi
@@ -373,7 +386,7 @@ writepage2:
     lda  (buflo),y   ; write a byte to the Arduino
     jsr  writebyte
     iny
-#if PAGE_SIZE < 128
+.IF PAGE_SIZE < 128
     bpl  writepage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
@@ -382,23 +395,27 @@ writepage2:
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
-#else
+.ELSE
+.IF PAGE_SIZE = 128
     bne  writepage2
     inc  bufhi
-#endif
+.ELSE
+    .ERROR Unsupported page size!
+.ENDIF
+.ENDIF
     rts
 
 checkinput:
     jsr  delay
     ldx  danx
-    lda  $BFFA,x     ; wait until there's a byte available
+    lda  $BFFA,x     ; wait until there is a byte available
     and  #$20
     rts
 
 readbyte:
     ldx  danx
 readbyte2:
-    lda  $BFFA,x     ; wait until there's a byte available
+    lda  $BFFA,x     ; wait until there is a byte available
     and  #$20
     beq  readbyte2
     lda  $BFF8,x     ; get the byte
@@ -410,7 +427,7 @@ readpage2:
     jsr  readbyte
     sta  (buflo),y
     iny
-#if PAGE_SIZE < 128
+.IF PAGE_SIZE < 128
     bpl  readpage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
@@ -419,10 +436,14 @@ readpage2:
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
-#else
+.ELSE
+.IF PAGE_SIZE = 128
     bne  readpage2
     inc  bufhi
-#endif
+.ELSE
+    .ERROR Unsupported page size!
+.ENDIF
+.ENDIF
     rts
 
 verifypage:
@@ -432,7 +453,7 @@ verifypage2:
     cmp  (buflo),y
     bne  verifyerr
     iny
-#if PAGE_SIZE < 128
+.IF PAGE_SIZE < 128
     bpl  verifypage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
@@ -441,10 +462,14 @@ verifypage2:
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
-#else
+.ELSE
+.IF PAGE_SIZE = 128
     bne  verifypage2
     inc  bufhi
-#endif
+.ELSE
+    .ERROR Unsupported page size!
+.ENDIF
+.ENDIF
     rts
 verifyerr:
     sta $0800

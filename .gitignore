@@ -11,12 +11,14 @@ bootpg/bin
 eprom/bin
 utilities/bin
 utilities/*/bin
+utilities/*/bin-*
 dsk/*
 DANII_Release_v*.zip
 localsettings.mk
 
 # Exclude the "no bootloader" hex file:
 Apple2Arduino/bin/*
+Apple2Arduino/bin-*/*
 
 # Eclipse project
 .project
