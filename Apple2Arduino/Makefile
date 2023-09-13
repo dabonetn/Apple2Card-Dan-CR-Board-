@@ -68,7 +68,7 @@ HEX_FILE	:= Apple2Arduino.ino.644p.with_bootloader.hex
 BOARD		:= megax4:avr:atmegax4:cpu=644_16b
 # cd MiniCoreDAN2Controller/avr/bootloaders/optiboot_flash
 # make atmega644p AVR_FREQ=16000000L DANII=1 GCCROOT=
-BOOTLOADER	:= optiboot_flash_atmega644p_UART_DANII_16000000L_NOLED.hex
+BOOTLOADER	:= optiboot_atmega644p_DANII_16000000L.hex
 BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
 endif
 
