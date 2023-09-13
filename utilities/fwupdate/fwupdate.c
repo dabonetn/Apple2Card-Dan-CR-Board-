@@ -70,6 +70,12 @@ void main(void)
   printf("\n");
   inverse();
   printf("            DANII CONTROLLER           \n");
+#ifdef ATMEGA328P
+  printf("               ATMEGA328P              \n");
+#elif defined ATMEGA644P
+  printf("               ATMEGA644P              \n");
+#endif
+
   printf("         FIRMWARE UPDATER " FW_VERSION "        \n");
   norm();
 

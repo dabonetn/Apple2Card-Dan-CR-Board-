@@ -25,11 +25,15 @@ ATMEGA_TYPE ?= 328P
 
 ifeq ($(strip $(ATMEGA_TYPE)),328P)
 BINDIR           := bin-328p
+# maximum firmware size: 32256 bytes (32K-512, since the last 512 bytes belong to the bootloader, which we cannot touch)
+FW_MAX_SIZE      := 32256
 ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 endif
 
 ifeq ($(strip $(ATMEGA_TYPE)),644P)
 BINDIR           := bin-644p
+# maximum firmware size: 32768 bytes (32K, actual flash of 644P is larger, but this will do for now, and disk/RAM space is limited)
+FW_MAX_SIZE      := 32768
 ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.644p.with_bootloader.hex
 endif
 
@@ -62,7 +66,7 @@ $(BINDIR)/dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin
 # generate include file with content of Arduino hex file
 $(BINDIR)/fwimage.bin: $(ARDUINO_HEX_FILE) $(BINDIR)
 	@echo "Converting Arduino firmware hex to binary"
-	@python3 hex2bin.py --size 32768 --fillbyte 255 $(ARDUINO_HEX_FILE) $@
+	@python3 hex2bin.py --size $(FW_MAX_SIZE) --fillbyte 255 $(ARDUINO_HEX_FILE) $@
 
 $(BINDIR):
 	- mkdir $(BINDIR)

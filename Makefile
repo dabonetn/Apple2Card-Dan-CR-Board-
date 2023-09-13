@@ -27,11 +27,13 @@ DISK_FILES := $(DISK_NAME).po $(DISK_NAME).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM fwupdate/bin/FWUPDATE.SYSTEM eeprom/bin/EEPROM.PROG.SYS eeprom/bin/SRAM.PROG.SYS)
 
+ATMEGA_TYPE ?= 328P
+
 all:
 	make -C bootpg $@
 	make -C eprom $@
-	make -C Apple2Arduino $@ ATMEGA_TYPE=328P
-	make -C utilities $@ ATMEGA_TYPE=328P
+	make -C Apple2Arduino $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
+	make -C utilities $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
 
 clean:
 	make -C bootpg $@

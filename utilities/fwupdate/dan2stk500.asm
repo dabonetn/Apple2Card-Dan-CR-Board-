@@ -14,12 +14,14 @@
   PAGE_SIZE =   64
   ; page where the bootloader begins (not to be touched)
   END_PAGE  =  $3f
+  DAN_CARD  =  3 ; type 3 reported by bootloader for ATMEGA328P
 .ELSE
 .IFDEF ATMEGA644P
   ; page size is given in words (1word = 2bytes)
   PAGE_SIZE =  128
   ; page where the bootloader begins (not to be touched)
   END_PAGE  =  $7e
+  DAN_CARD  =  4 ; type 4 reported by bootloader for ATMEGA644P
 .ELSE
  .ERROR No valid platform defined!
 .ENDIF
@@ -65,6 +67,8 @@ STK_READ_PAGE       = $74  ;
 STK_READ_SIGN       = $75  ; 'u'
 STK_SW_MAJOR        = $81  ; ' '
 STK_SW_MINOR        = $82  ; ' '
+
+STK_DANII_TYPE      = $D2  ; custom STK parameter ID to obtain type of DANII board type (ATMEGA328P=3, ATMEGA644P=4)
 
 ; generate Apple-ASCII string (with MSB set)
 .MACRO   ASCHI STR
@@ -164,6 +168,26 @@ dan2fwupdate:
     lda  #13+128
     jsr  COUT
 
+    PRINT(MSG_HW_TYPE) ; "HARDWARE TYPE:"
+
+    ; show card type: 3=ATMEGA328P or 4=ATMEGA644P?
+    lda #STK_DANII_TYPE
+    jsr  doSTKgetParam
+    pha
+    jsr  PRHEX2
+    lda  #13+128
+    jsr  COUT
+    pla
+
+    ; check if hardware type matche the type of this firmware
+    cmp #DAN_CARD
+    beq hw_ok
+
+    ; dang. The card reports a mismatching type. A different firmware type is required.
+    PRINT(MSG_HW_MISMATCH)
+    jmp stop
+
+hw_ok:
     ; install monitor as warmstart handler for debugging
     lda  #>MONITOR
     ldx  #<MONITOR
@@ -188,9 +212,9 @@ dan2fwupdate:
     jsr  writebyte
 
     PRINT(MSG_COMPLETE); "UPDATE COMPLETE"
-    jsr  clearWarmStartVec
 
 stop:
+    jsr  clearWarmStartVec
     jmp  stop
 
 verify:
@@ -514,6 +538,16 @@ MSG_ERROR:
 MSG_BOOTL:
         .BYTE 13+128
         ASCHI "  BOOTLOADER: V"
+        .BYTE 0
+MSG_HW_TYPE:
+        .BYTE 13+128
+        ASCHI "  HARDWARE TYPE (3=328P, 4=644P): "
+        .BYTE 0
+MSG_HW_MISMATCH:
+        .BYTE 13+128
+        ASCHI "  HARDWARE MISMATCH!"
+        .BYTE 13+128
+        ASCHI "  FIRMWARE DOES NOT MATCH THIS CARD."
         .BYTE 0
 MSG_VERIFY:
         .BYTE 13+128
