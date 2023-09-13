@@ -30,11 +30,11 @@ def checksum(data):
 def hex2bin(InputFileName, OutputFileName, ImageSize, FillByte=0xff):
 	IntelHexText = readfile(InputFileName)
 
-	Image = bytearray(ImageSize*bytes([FillByte]))
+	Image = bytearray(65536*bytes([FillByte]))
 	LineNumber = 0
 	SegmentAddress = 0
 	Ok = False
-	Max = 0
+	MaxAddr = 0
 	for LineNumber in range(len(IntelHexText)):
 		Line = IntelHexText[LineNumber].rstrip()
 		if Line.startswith(":"):
@@ -50,8 +50,8 @@ def hex2bin(InputFileName, OutputFileName, ImageSize, FillByte=0xff):
 				raise RuntimeError("Invalid checksum "+hex(Crc)+" in line "+str(LineNumber+1))
 			if RecType == 0:                                # data record
 				Image[Addr:Addr+ByteCount] = Data
-				if (Addr + ByteCount) > Max:
-					Max = Addr + ByteCount
+				if (Addr + ByteCount) > MaxAddr:
+					MaxAddr = Addr + ByteCount
 			elif RecType == 1:				# end of file
 				Ok = True
 				break
@@ -65,12 +65,9 @@ def hex2bin(InputFileName, OutputFileName, ImageSize, FillByte=0xff):
 				raise RuntimeError("Unsupported SREC type: "+hex(RecType)+" in line "+str(LineNumber+1))
 	if not Ok:
 		raise RuntimeError("Missing end-of-file marker. Hex file is incomplete.")
-	# Round our max address to 256, clip the bigger array to that, write it
-	Max = (Max + 255) & ~255
-	Padded = bytearray(Max*bytes([FillByte]))
-	Padded[0:Max] = Image[0:Max]
+        # write image file - limited to requested maximum size
 	with open(OutputFileName, "wb") as f:
-		f.write(Padded)
+		f.write(Image[0:ImageSize])
 
 def run(args):
 	Ok        = False
