@@ -20,35 +20,54 @@
 
 include ../../version.mk
 
-ARDUINO_HEX_FILE      := ../../Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
+# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA_TYPE=328P' or 'make ATMEGA_TYPE=644P')
+ATMEGA_TYPE ?= 328P
 
-all: bin bin/FWUPDATE.SYSTEM
+ifeq ($(strip $(ATMEGA_TYPE)),328P)
+BINDIR           := bin-328p
+ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
+endif
+
+ifeq ($(strip $(ATMEGA_TYPE)),644P)
+BINDIR           := bin-644p
+ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.644p.with_bootloader.hex
+endif
+
+ifeq ($(ARDUINO_HEX_FILE),)
+  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA_TYPE)'. Currently supported types: '328P' or '644P'.)
+endif
+
+# select binary directory
+# provide a define to CC65/CA65 selecting the ATMEGA328P vs ATMEGA644P
+DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA_TYPE)=1
+
+all: $(BINDIR) $(BINDIR)/FWUPDATE.SYSTEM
 
 # build ProDOS executable
-bin/FWUPDATE.SYSTEM: bin/fwupdate.o bin/dan2stk500.o
+$(BINDIR)/FWUPDATE.SYSTEM: $(BINDIR)/fwupdate.o $(BINDIR)/dan2stk500.o
 	@echo "Linking $@"
-	@ld65 -C apple2-system.cfg  -D __EXEHDR__=0 -vm -m bin/FWUPDATE.list -o $@ bin/fwupdate.o bin/dan2stk500.o apple2.lib
+	@ld65 -C apple2-system.cfg $(DEFINES) -vm -m $(BINDIR)/FWUPDATE.list -o $@ $(BINDIR)/fwupdate.o $(BINDIR)/dan2stk500.o apple2.lib
 
 # build firmware update module
-bin/fwupdate.o: fwupdate.c ../../version.mk
+$(BINDIR)/fwupdate.o: fwupdate.c ../../version.mk
 	@echo "Compiling fwupdate.c"
-	@cc65 -t apple2 -D__EXEHDR__=0 -DFW_VERSION=\"$(FW_VERSION)\" -o bin/fwupdate.asm fwupdate.c
-	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ bin/fwupdate.asm
+	@cc65 -t apple2 $(DEFINES) -DFW_VERSION=\"$(FW_VERSION)\" -o $(BINDIR)/fwupdate.asm fwupdate.c
+	@ca65 -t apple2 $(DEFINES) -o $@ $(BINDIR)/fwupdate.asm
 
 # build STK500 updater
-bin/dan2stk500.o: dan2stk500.asm bin/fwimage.bin
+$(BINDIR)/dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin
 	@echo "Assembling dan2stk500.asm"
-	@ca65 -t apple2 -D__EXEHDR__=0 -o $@ $<
+	@ca65 -t apple2 $(DEFINES) -o $@ $<
 
 # generate include file with content of Arduino hex file
-bin/fwimage.bin: $(ARDUINO_HEX_FILE) bin
+$(BINDIR)/fwimage.bin: $(ARDUINO_HEX_FILE) $(BINDIR)
 	@echo "Converting Arduino firmware hex to binary"
-	@python3 hex2bin.py --size 32768 --fillbyte 255 $(ARDUINO_HEX_FILE) bin/fwimage.bin
+	@python3 hex2bin.py --size 32768 --fillbyte 255 $(ARDUINO_HEX_FILE) $@
 
-bin:
-	- mkdir bin
+$(BINDIR):
+	- mkdir $(BINDIR)
 
 clean:
 	@echo "Clean up..."
-	@rm -f bin/*
+	@rm -f bin-*/*
 

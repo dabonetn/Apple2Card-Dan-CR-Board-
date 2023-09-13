@@ -91,9 +91,9 @@ setWarmStartAX:     ; address in A and X
     rts
 
 setupBuffer:        ; setup local buffer pointer and Arduino flash word address
-    lda  #<FW_PTR   ; load lower address of firmware data buffer
+    lda  #<FW_START ; load lower address of firmware data buffer
     sta  buflo
-    lda  #>FW_PTR   ; load higher address of firmware data buffer
+    lda  #>FW_START ; load higher address of firmware data buffer
     sta  bufhi
     lda  #$00
     sta  adrhi      ; clear Arduino flash word address
@@ -453,4 +453,16 @@ MSG_COMPLETE:
         ASCINV "UPDATE COMPLETE! RESTART TO CONTINUE."
         .BYTE 13+128,0
 
-FW_PTR:  .incbin   "bin/fwimage.bin"
+; include the actual firmware binary
+FW_START:
+  .IFDEF ATMEGA328P
+        .incbin   "bin-328p/fwimage.bin"
+  .ENDIF
+  .IFDEF ATMEGA644P
+        .incbin   "bin-644p/fwimage.bin"
+  .ENDIF
+FW_END:
+
+; calculate firmware size in bytes and words
+FW_SIZE_BYTES = FW_END-FW_START
+FW_SIZE_WORDS = FW_SIZE_BYTES/2
