@@ -3,6 +3,19 @@
 
 .setcpu		"6502"
 
+
+.IFDEF ATMEGA328P
+  PAGE_SIZE =   64
+  END_PAGE  =  $3f
+.ELSE
+.IFDEF ATMEGA644P
+  PAGE_SIZE =  128
+  END_PAGE  =  $7e
+.ELSE
+ .ERROR No valid platform defined!
+.ENDIF
+.ENDIF
+
 ; export the interface functions
 .export setFwUpdateHook
 .export clearWarmStartVec
@@ -159,6 +172,12 @@ dan2fwupdate:
     jsr  verify
     PRINT(MSG_OK)      ; "OK!"
 
+    ; leave programming mode. Not strictly necessary
+    lda  #STK_LEAVE_PROGMODE
+    jsr  writebyte
+    lda  #STK_CRC_EOP
+    jsr  writebyte
+
     PRINT(MSG_COMPLETE); "UPDATE COMPLETE"
     jsr  clearWarmStartVec
 
@@ -167,10 +186,13 @@ stop:
 
 verify:
     jsr  doSTKloadAddress  ; load address
+    lda  adrhi
+    cmp  #$ff              ; set when doSTKloadAddress reached the end
+    beq  _verify_done
     jsr  doSTKverifyBlock  ; read and verify data
     clc                    ; increase word address
     lda  adrlo
-    adc  #$40              ; 64words = 128 bytes
+    adc  #PAGE_SIZE        ; 64words = 128 bytes (328P); 128=w (644P)
     sta  adrlo
     bcc  verify
     inc  adrhi
@@ -178,17 +200,19 @@ verify:
     jsr  PRHEX2
     dec  CH
     dec  CH
-    lda  adrhi
-    cmp  #$3f              ; do not consider the last 512bytes (256 words) containing the bootloader
-    bne  verify
+    jmp  verify
+_verify_done:
     rts
 
 program:
     jsr  doSTKloadAddress  ; load address
+    lda  adrhi
+    cmp  #$ff              ; set when doSTKloadAddress reached the end
+    beq  _program_done
     jsr  doSTKwriteBlock   ; program data to flash
     clc                    ; increase word address
     lda  adrlo
-    adc  #$40              ; 64words = 128 bytes
+    adc  #PAGE_SIZE        ; 64words = 128 bytes (328P) 128W=256B (644P)
     sta  adrlo
     bcc  program
     inc  adrhi
@@ -196,9 +220,8 @@ program:
     jsr  PRHEX2
     dec  CH
     dec  CH
-    lda  adrhi
-    cmp  #$3f              ; do not consider the last 512bytes (256 words) containing the bootloader
-    bne  program
+    jmp  program
+_program_done:
     rts
 
 error:
@@ -222,9 +245,9 @@ doSTKwriteBlock:
 
 doSTKrwCmd:
     jsr  writebyte   ; send command byte
-    lda  #$00
-    jsr  writebyte   ; send length $0080 (128 byte)
-    lda  #$80
+    lda  #>(PAGE_SIZE * 2)
+    jsr  writebyte   ; send length (128 byte, or 256 bytes)
+    lda  #<(PAGE_SIZE * 2)
     jsr  writebyte
     lda  #'F'        ; send 'F'lash target
     jmp  writebyte
@@ -258,6 +281,18 @@ doSTKInsyncOk:
     rts
 
 doSTKloadAddress:
+    ; first, compare the AVR address we want with the maximum (in words)
+    ; and set adrhi to 0xff, and exit, if we reached the end
+    lda  adrhi
+    cmp  #>AVR_SIZE
+    bne  _no_overflow
+    lda  adrlo
+    cmp  #<AVR_SIZE
+    bne  _no_overflow
+    lda  #$ff
+    sta  adrhi
+    rts
+_no_overflow:
     lda  #STK_LOAD_ADDRESS
     jsr  writebyte
     lda  adrlo
@@ -332,20 +367,25 @@ writebyte2:
     bpl  writebyte2  ; wait until its received (OBFA is high)
     rts
 
-writepage:           ; write a flash page of 128bytes
+writepage:           ; write a flash page of 128, or 256 bytes
     ldy  #$00
 writepage2:
     lda  (buflo),y   ; write a byte to the Arduino
     jsr  writebyte
     iny
+#if PAGE_SIZE < 128
     bpl  writepage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
-    adc  #$80
+    adc  #(PAGE_SIZE * 2)
     sta  buflo
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
+#else
+    bne  writepage2
+    inc  bufhi
+#endif
     rts
 
 checkinput:
@@ -370,14 +410,19 @@ readpage2:
     jsr  readbyte
     sta  (buflo),y
     iny
+#if PAGE_SIZE < 128
     bpl  readpage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
-    adc  #$80
+    adc  #(PAGE_SIZE * 2)
     sta  buflo
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
+#else
+    bne  readpage2
+    inc  bufhi
+#endif
     rts
 
 verifypage:
@@ -387,14 +432,19 @@ verifypage2:
     cmp  (buflo),y
     bne  verifyerr
     iny
+#if PAGE_SIZE < 128
     bpl  verifypage2
     clc              ; now increase buffer pointer by 128 bytes
     lda  buflo
-    adc  #$80
+    adc  #(PAGE_SIZE * 2)
     sta  buflo
     lda  bufhi
     adc  #$00        ; add carry
     sta  bufhi
+#else
+    bne  verifypage2
+    inc  bufhi
+#endif
     rts
 verifyerr:
     sta $0800
