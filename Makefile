@@ -25,26 +25,53 @@ ZIP_FILE := DANII_Release_v$(FW_VERSION).zip
 DISK_FILES := $(DISK_NAME).po $(DISK_NAME).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO ADTPRO-2.1.D2.DSK
 
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
-UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM fwupdate/bin/FWUPDATE.SYSTEM eeprom/bin/EEPROM.PROG.SYS eeprom/bin/SRAM.PROG.SYS)
+UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM \
+                        ipconfig/bin/IPCONFIG.SYSTEM \
+                        fwupdate/bin/FWUPDATE.SYSTEM \
+                        eeprom/bin/EEPROM.PROG.SYS \
+                        eeprom/bin/SRAM.PROG.SYS)
 
-ATMEGA_TYPE ?= 328P
+# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA=328P' or 'make ATMEGA=644P')
+ATMEGA ?= 328P
 
-all:
-	make -C bootpg $@
-	make -C eprom $@
-	make -C Apple2Arduino $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
-	make -C utilities $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
+.PHONY: build all common clean release ftp build 328P 644P
 
+# build board which is selected by ATMEGA=... switch (328P by default)
+build: common
+	make -C Apple2Arduino ATMEGA=$(ATMEGA)
+	make -C utilities ATMEGA=$(ATMEGA)
+
+# build common stuff once (things not dependent on ATMEGA type)
+common:
+	make -C eprom
+	make -C bootpg
+
+# build ATMEGA328P board binaries
+328P: common
+	make -C Apple2Arduino ATMEGA=328P
+	make -C utilities ATMEGA=328P
+
+# build ATMEGA644P board binaries
+644P: common
+	make -C Apple2Arduino ATMEGA=644P
+	make -C utilities ATMEGA=644P
+
+# build everything - for all supported types
+all: 328P 644P
+
+# clean everything
 clean:
 	make -C bootpg $@
 	make -C eprom $@
-	make -C Apple2Arduino $@
-	make -C utilities $@
+	make -C Apple2Arduino $@ ATMEGA=328P
+	make -C Apple2Arduino $@ ATMEGA=644P
+	make -C utilities $@ ATMEGA=328P
+	make -C utilities $@ ATMEGA=644P
 
 release:
 	- rm -f $(ZIP_FILE)
 	@zip $(ZIP_FILE) eprom/bin/eprom.bin $(addprefix dsk/,$(DISK_FILES)) $(HEX_FILE) $(UTILS)
 
 ftp:
-	make -C utilities $@
+	make -C utilities $@ ATMEGA=$(ATMEGA)
 

@@ -33,20 +33,20 @@ include ../version.mk
 
 DSK_FILE := bin/$(DISK_NAME).dsk
 
-ATMEGA_TYPE ?= 328P
+ATMEGA ?= 328P
 
 # optionally include both 328P/644P updaters in the tools disk
 FWUPDATER_328P := fwupdate/bin-328p/FWUPDATE.SYSTEM
 FWUPDATER_644P := fwupdate/bin-644p/FWUPDATE.SYSTEM
 
-ifneq ($(ATMEGA_TYPE),328P)
+ifneq ($(ATMEGA),328P)
 ifeq (,$(wildcard fwupdate/bin-328p/FWUPDATE.SYSTEM))
 # When building *644P* and the 328P updater does *not* exist, then don't include it in the disk image.
 FWUPDATER_328P :=
 endif
 endif
 
-ifneq ($(ATMEGA_TYPE),644P)
+ifneq ($(ATMEGA),644P)
 ifeq (,$(wildcard fwupdate/bin-644p/FWUPDATE.SYSTEM))
 # When building *328P* and the 644P updater does *not* exist, then don't include it in the disk image.
 FWUPDATER_644P :=
@@ -57,7 +57,7 @@ TARGETS := all clean
 
 all: bin
 	make -C eeprom $@
-	make -C fwupdate $@ ATMEGA_TYPE=$(ATMEGA_TYPE)
+	make -C fwupdate $@ ATMEGA=$(ATMEGA)
 	make -C ipconfig $@
 	make -C allvols $@
 	make bin/$(DISK_NAME).po
@@ -83,21 +83,21 @@ bin/$(DISK_NAME).po: Makefile ../version.mk $(FWUPDATER_328P) $(FWUPDATER_644P) 
 	@$(AC) -d $(DSK_FILE) QUIT.SYSTEM
 	@$(AC) -d $(DSK_FILE) PRO.DATE
 	@$(AC) -n $(DSK_FILE) $(DISK_NAME)
-	@cat bin/MANAGER.SYS                   | $(AC) -p $(DSK_FILE) MANAGER.SYS     sys
-	@cat bin/FORMAT.SYS                    | $(AC) -p $(DSK_FILE) FORMAT.SYS      sys
+	@cat bin/MANAGER.SYS              | $(AC) -p $(DSK_FILE) MANAGER.SYS     sys
+	@cat bin/FORMAT.SYS               | $(AC) -p $(DSK_FILE) FORMAT.SYS      sys
 ifneq (,$(FWUPDATER_328P))
 	@echo "Adding ATMEGA328P firmware updater..."
 # we currently launch the 328P updater automatically. Hence, it has the ".system" suffix.
-	@cat fwupdate/bin-328p/FWUPDATE.SYSTEM | $(AC) -p $(DSK_FILE) FWUPD328.SYSTEM sys
+	@cat $(FWUPDATER_328P)            | $(AC) -p $(DSK_FILE) FWUPD328.SYSTEM sys
 endif
 ifneq (,$(FWUPDATER_644P))
 	@echo "Adding ATMEGA644P firmware updater..."
 # Currently the 644P updater is added as an extra to the disk. Needs to be launched manually.
-	@cat fwupdate/bin-644p/FWUPDATE.SYSTEM | $(AC) -p $(DSK_FILE) FWUPD644.SYS    sys
+	@cat $(FWUPDATER_644P)            | $(AC) -p $(DSK_FILE) FWUPD644.SYS    sys
 endif
-	@cat eeprom/bin/EEPROM.PROG.SYS        | $(AC) -p $(DSK_FILE) EEPROM.SYS      sys
-	@cat allvols/bin/ALLVOLS.SYSTEM        | $(AC) -p $(DSK_FILE) ALLVOLS.SYS     sys
-	@cat ipconfig/bin/IPCONFIG.SYSTEM      | $(AC) -p $(DSK_FILE) IPCONFIG.SYS    sys
+	@cat eeprom/bin/EEPROM.PROG.SYS   | $(AC) -p $(DSK_FILE) EEPROM.SYS      sys
+	@cat allvols/bin/ALLVOLS.SYSTEM   | $(AC) -p $(DSK_FILE) ALLVOLS.SYS     sys
+	@cat ipconfig/bin/IPCONFIG.SYSTEM | $(AC) -p $(DSK_FILE) IPCONFIG.SYS    sys
 	@echo "Converting to ProDOS..."
 	@python3 ipconfig/dsk2po.py $(DSK_FILE)
 	@cp $(DSK_FILE) ../dsk/.

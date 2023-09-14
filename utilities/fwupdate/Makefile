@@ -20,17 +20,17 @@
 
 include ../../version.mk
 
-# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA_TYPE=328P' or 'make ATMEGA_TYPE=644P')
-ATMEGA_TYPE ?= 328P
+# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA=328P' or 'make ATMEGA=644P')
+ATMEGA ?= 328P
 
-ifeq ($(strip $(ATMEGA_TYPE)),328P)
+ifeq ($(strip $(ATMEGA)),328P)
 BINDIR           := bin-328p
 # maximum firmware size: 32256 bytes (32K-512, since the last 512 bytes belong to the bootloader, which we cannot touch)
 FW_MAX_SIZE      := 32256
 ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 endif
 
-ifeq ($(strip $(ATMEGA_TYPE)),644P)
+ifeq ($(strip $(ATMEGA)),644P)
 BINDIR           := bin-644p
 # maximum firmware size: 32768 bytes (32K, actual flash of 644P is larger, but this will do for now, and disk/RAM space is limited)
 FW_MAX_SIZE      := 32768
@@ -38,12 +38,12 @@ ARDUINO_HEX_FILE := ../../Apple2Arduino/Apple2Arduino.ino.644p.with_bootloader.h
 endif
 
 ifeq ($(ARDUINO_HEX_FILE),)
-  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA_TYPE)'. Currently supported types: '328P' or '644P'.)
+  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA)'. Currently supported types: '328P' or '644P'.)
 endif
 
 # select binary directory
 # provide a define to CC65/CA65 selecting the ATMEGA328P vs ATMEGA644P
-DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA_TYPE)=1
+DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA)=1
 
 all: $(BINDIR) $(BINDIR)/FWUPDATE.SYSTEM
 

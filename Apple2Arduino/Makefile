@@ -32,8 +32,8 @@ SOURCES		:= $(wildcard *.ino *.c *.cpp *.h)
 PLATFORM_PATH	:= $(realpath .)
 BUILD_PROPERTIES := --build-property "runtime.platform.path=$(PLATFORM_PATH)"
 
-# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA_TYPE=328P' or 'make ATMEGA_TYPE=644P')
-ATMEGA_TYPE ?= 328P
+# build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA=328P' or 'make ATMEGA=644P')
+ATMEGA ?= 328P
 
 # Allow verbose make using $ make V=1
 ifeq ($(V),1)
@@ -43,12 +43,12 @@ Q 		:= @
 endif
 
 
-# clear variable (used as a check if a valid ATMEGA_TYPE was selected)
+# clear variable (used as a check if a valid ATMEGA type was selected)
 DSTDIR :=
 
 # Bootloaders are located at:
 # https://github.com/ThorstenBr/MiniCoreDAN2Controller.git
-ifeq ($(strip $(ATMEGA_TYPE)),328P)
+ifeq ($(strip $(ATMEGA)),328P)
 DSTDIR		:= bin-328p
 BOARD		:= arduino:avr:uno
 HEX_FILE	:= Apple2Arduino.ino.328p.with_bootloader.hex
@@ -58,7 +58,7 @@ BOOTLOADER	:= optiboot_atmega328p_DANII_16000000L.hex
 BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
 endif
 
-ifeq ($(strip $(ATMEGA_TYPE)),644P)
+ifeq ($(strip $(ATMEGA)),644P)
 # this requires external 'core' libraries for the Atmega644
 # wget http://www.leonardomiliani.com/repository/package_leonardomiliani.com_index.json
 # mv package_leonardomiliani.com_index.json ~/.arduino15/
@@ -73,7 +73,7 @@ BUILD_PROPERTIES += --build-property "bootloader.file=$(BOOTLOADER)"
 endif
 
 ifeq ($(DSTDIR),)
-  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA_TYPE)'. Currently supported types: '328P' or '644P'.)
+  DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA)'. Currently supported types: '328P' or '644P'.)
 endif
 
 # set localisation to default, so arduino-cli log output does not depend on system language, but is always in english
