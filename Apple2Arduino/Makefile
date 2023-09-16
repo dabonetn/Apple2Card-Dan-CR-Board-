@@ -83,9 +83,6 @@ export LC_ALL:=C
 
 all: $(DSTDIR) build
 
-DSTDIR:
-	- mkdir $(DSTDIR)
-
 build: $(DSTDIR)/CHECKSETUP $(HEX_FILE)
 
 fwversion.h: ../version.mk
