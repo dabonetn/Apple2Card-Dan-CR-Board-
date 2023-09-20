@@ -181,9 +181,10 @@ It's recommended to leave out the two resistors R27 and R28 on the controller PC
 LED D11 (just above the J6 header) indicates network activity of the WIZnet adapter.
 
 ## Mounting Bracket
-The [CAD](CAD) folder contains different STL designs for 3D printed brackets, which can be used to mount the WIZnet Ethernet adapter into the back of an Apple II.
+The [CAD](CAD) folder contains different STL designs for 3D printed brackets, which can be used to mount the WIZnet Ethernet adapter into the back of an Apple II or Apple ///.
 
 ![3D Printed Eth Mount](pics/DAN2EthMount.jpg)
+![3D Printed Eth Mount](pics/DAN2Apple3EthBracket.jpg)
 
 ## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files.
