@@ -42,8 +42,8 @@
 
 // FTP ports: command port should normally be 21
 #define FTP_CMD_PORT     21
-// FTP data port can be any port, but is normally port 20
-#define FTP_DATA_PORT    20
+// FTP data port can be any port. For "passive FTP" ports between 1024-65535 are used.
+#define FTP_DATA_PORT    65020
 
 // restrict FTP login to a specific user
 // (Currently 7 bytes only and only upper case letters...
