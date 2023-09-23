@@ -43,7 +43,8 @@ You may not need to solder the following components:
 * Add a pin header to **J6** to allow the extension of a WIZnet SPI network interface.
 
 ## Errata
-You may need to use 4K7 resistors instead of 10K for the pull-down resistors R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors work for most, but are too weak for some 82C55 devices.
+The original version of the PCB used 10K pull-down resistors for R1/R2/R3/R7/R18/R21/R22/R23. The 10K resistors worked with most 82C55 devices, but were known to be too weak for some 82C55s.
+The listed resistors were replaced with 4k7 resistors in the current PCB version. The 4k7 resistors should work with all 82C55s (according to the data sheets).
 
 # Device Programming
 
@@ -98,15 +99,40 @@ You may need to adapt "avrisp" and the "/dev/ttyUSB0" port to match your program
 # Firmware Updates
 Once the custom bootloader was flashed to the ATMEGA, all further firmware updates can be done through the Apple II.
 The utility is even able to recover "bricked" cards - as long as the custom bootloader was installed.
+If the card was "bricked" (no longer responds as a drive), then you have to load the firmware update from a real disk (or a FloppyEmu).
 
-See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II.
+*Note*: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader.
+In this case the Apple II is unable to do the update. You will need to do one more manual update using an ICSP programmer (see above).
+
+## Firmware Update with Apple II
+See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases) with a disk containing the Arduino firmware update utility for the Apple II (use the DANIITOOL... disk).
+The ProDOS variant of the file (.po suffix) can also be stored as a volume on the DAN][ controller itself - so the firmware update can directly be loaded from the card.
+
+* Load the "DANIITOOL..." disk (from a real disk, from FloppyEmu, or from a DAN][ volume).
+* Enter the slot number of your DAN ][ Controller (Slot 1-7 for Apple II).
+* The utility then asks to "PRESS CTRL-RESET TO START THE UPDATE". Yes, you need to press "CTRL-RESET", which triggers a warm-start, resets the DAN][ controller and immediately starts the firmware update.
+
 There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
 
-Note: if you flashed your ATMEGA before the firmware update utility for the Apple II was introduced, then your ATMEGA does not yet contain the new custom bootloader.
-In this case the Apple II is unable to do the update. You will need to do one more manual update using an ICSP programmer (see above).
+## Firmware Update with Apple ///
+The firmware update is now also possible with the Apple ///.
+
+Since Apple /// *cannot* use the ProDOS-based firmware disks (DANIITOOL...), a separate firmware update disk is provided for Apple ///.
+This file needs to be copied to a real disk (or to a FloppyEmu).
+
+The Apple /// firmware update is based on **Apple II DOS 3.3**. Therefore, it must be run in "**Apple ][ Emulation Mode**":
+
+* Load the "**Apple ][ Emulation**" disk" first and start the machine.
+* Then load the disk "**DOS3.3_APPLEIII_FWUPDATE_....dsk**" (from the release ZIP file) and press "RETURN".
+* The machine reboots in Apple ][ mode and loads the update utility.
+* Enter the slot number of your DAN ][ Controller (**Slot 1-4** for Apple ///).
+* When the utility asks to "PRESS RESET TO START THE UPDATE", then just press the single RESET button on the Apple /// (no CTRL-RESET etc).
+* The reset timing on the Apple /// is a little tricky. If the utility reports "NO SYNC", just press RESET again (may need a few attempts).
 
 # SD Cards
 Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
+
+Best performance is achieved with "Class 10" (or better) cards. "Class 4" (or lower) may result in slower disk access.
 
 ## FAT16/FAT32 Mode
 You can use SD cards with either FAT16 or FAT32 file system as the first partition.
@@ -146,7 +172,7 @@ The card can be installed in any Apple II slot, but slot 7 is a good choice: the
 Usually a floppy controller is installed in slot 6. So the DAN][Card should be installed in slot 7 to make it the first boot device.
 
 # Booting the Apple II
-When the card is the primary boot device then the message "DAN II: PRESS RETURN" appears on the bottom of the screen when the Apple II is booting. 
+When the card is the primary boot device then the message "DAN II: PRESS RETURN" appears on the bottom of the screen when the Apple II is booting.
 
 * If the **RETURN** key is pressed, then the boot menu is loaded to configure the card (see below).
 * If the **ESCAPE** key is pressed, then the DAN][ Controller is skipped and the Apple II will search for the next boot device (e.g. your floppy drive).
