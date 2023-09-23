@@ -8,6 +8,13 @@
 .export FW_END
 .export FW_SIZE_BYTES
 .export FW_SIZE_WORDS
+.export SLOTNUM
+.export MSG_ADDR
+.export print
+
+.IFDEF APPLE3
+.export RESETDLY
+.ENDIF
 
 .IFDEF ATMEGA328P
   ; page size is given in words (1word = 2bytes)
@@ -43,6 +50,7 @@ PRHEX    = $FDE3
 PRBYTE   = $FDDA
 RDKEY    = $FD0C
 COUT     = $FDED
+WAITLOOP = $FCA8
 MONITOR  = $FF69
 
 ; Apple II monitor registers
@@ -50,6 +58,10 @@ CH       = $24   ; horizontal cursor position
 CV       = $25
 BASL     = $28
 BASH     = $29
+
+USR_DATA = $0310
+SLOTNUM  = USR_DATA+1
+RESETDLY = USR_DATA+2
 
 SOFTEV   = $03f2 ; vector for warm start
 PWREDUP  = $03f4 ; this must = EOR #$A5 of SOFTEV+1
@@ -85,8 +97,11 @@ STK_DANII_TYPE      = $D2  ; custom STK parameter ID to obtain type of DANII boa
 .ENDMACRO
 
 .MACRO   PRINT STRVAR
-    ldx #(STRVAR-MSGS)
-    jsr print
+    LDA #<STRVAR      ; use full 16bit address, since string resource has
+    STA MSG_ADDR      ; outgrown 256 bytes...
+    LDA #>STRVAR
+    STA MSG_ADDR+1
+    JSR print
 .ENDMACRO
 
   ; code is relocatable
@@ -101,11 +116,11 @@ clearWarmStartVec:  ; clear the warm start hook
 
 setFwUpdateHook:    ; install warm start hook
     lda CV          ; remember cursor position
-    sta $0830
+    sta USR_DATA+3
     lda BASL
-    sta $0831
+    sta USR_DATA+4
     lda BASH
-    sta $0832
+    sta USR_DATA+5
 
     ldx #<dan2fwupdate ; address of warm start hook
     lda #>dan2fwupdate
@@ -127,16 +142,22 @@ setupBuffer:        ; setup local buffer pointer and Arduino flash word address
     rts
 
 dan2fwupdate:
-    lda $0830        ; restore cursor position after warm start
+    lda USR_DATA+3   ; restore cursor position after warm start
     sta CV
-    lda $0831
+    lda USR_DATA+4
     sta BASL
-    lda $0832
+    lda USR_DATA+5
     sta BASH
 
     PRINT(MSG_SYNC)  ; "SYNC"
 
-    lda  $0820       ; slot number passed in $820
+.IFDEF APPLE3        ; extra delay only required for Apple ///
+    lda  RESETDLY    ; due to its weird NMI vs I/O RESET emulation
+    jsr  WAITLOOP    ; where the CPU already starts before I/O reset
+    INC  RESETDLY    ; is released.
+.ENDIF
+
+    lda  SLOTNUM     ; selected slot number
     asl  a
     asl  a
     asl  a
@@ -366,28 +387,40 @@ error2:
     jmp error
 
 doSTKsync:
-    lda  #'.'+$80
+    lda  #80          ; give up after some attempts
+    sta  USR_DATA     ; retry counter
+syncretry:
+    lda  USR_DATA     ; any attempts left?
+    beq  nosync       ; no? Abort...
+
+    dec  USR_DATA
+:   lda  #'.'+$80     ; show "."
     jsr  COUT
 
-    lda  #STK_GET_SYNC
+    lda  #STK_GET_SYNC; send "GET_SYNC"
     jsr  writebyte
-    lda  #STK_CRC_EOP
+    lda  #STK_CRC_EOP ; send "CRC_EOP"
     jsr  writebyte
     jsr  checkinput   ; any reply available?
-    beq  doSTKsync    ; no? try sync again...
+    beq  syncretry    ; no? try sync again...
 
     jsr  readbyte     ; read reply
     cmp  #STK_INSYNC
-    bne  doSTKsync
+    bne  syncretry
 
     jsr  checkinput   ; any reply available?
-    beq  doSTKsync    ; no? try sync again...
+    beq  syncretry    ; no? try sync again...
 
     jsr  readbyte     ; read the byte
     cmp  #STK_OK
-    bne  doSTKsync
+    bne  syncretry
 
     rts
+
+nosync:
+    PRINT(MSG_NOSYNC)
+wait:
+     jmp wait
 
 delay:
     ldy  #$10
@@ -496,12 +529,12 @@ verifypage2:
 .ENDIF
     rts
 verifyerr:
-    sta $0800
-    lda (buflo),y
-    sta $0801
+    pha              ; error code
+;    lda (buflo),y
+;    sta USR_DATA    ; store data byte of verify error
     lda #13+128
     jsr COUT
-    lda $0800
+    pla
     jmp error
 
 PRHEX2:
@@ -514,12 +547,15 @@ PRHEX2:
     pla
     jmp  PRHEX
 
+; print string
 print:
-    lda MSGS,x
+    ldx #$00
+    MSG_ADDR=*+1
+:   lda MSGS,x
     beq ret
     jsr COUT
     inx
-    bne print
+    bne :-
 ret:rts
 
 MSGS:
@@ -557,6 +593,10 @@ MSG_FLASH:
         .BYTE 13+128
         ASCHI "  FLASHING "
         .BYTE 0
+MSG_NOSYNC:
+        .BYTE 13+128
+        ASCHI "  NO SYNC. TRY AGAIN."
+        .BYTE 13+128,0
 MSG_COMPLETE:
         .BYTE 13+128,13+128
         ASCINV "UPDATE COMPLETE! RESTART TO CONTINUE."

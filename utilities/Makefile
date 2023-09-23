@@ -33,16 +33,25 @@ include ../version.mk
 
 DSK_FILE := bin/$(DISK_NAME).dsk
 
+# Alternate DOS3.3 based firmware updater. This is intended for use on Apple /// (in Apple ][ emulation mode),
+# since the ProDOS utility cannot be used on Apple /// (ProDOS requires 64K RAM, which the A/// doesn't have in emulation mode).
+DOS33_DISK := bin/$(A3_DISK_NAME).dsk
+DOS33_TEMPLATE := templates/DOS3.3_FWUPDATE_MASTER.dsk
+
 ATMEGA ?= 328P
 
 # optionally include both 328P/644P updaters in the tools disk
 FWUPDATER_328P := fwupdate/bin-328p/FWUPDATE.SYSTEM
 FWUPDATER_644P := fwupdate/bin-644p/FWUPDATE.SYSTEM
 
+DOS33_FWUPDATER_328P := fwupdate/bin-328p/FWUPDATE.DOS33
+DOS33_FWUPDATER_644P := fwupdate/bin-644p/FWUPDATE.DOS33
+
 ifneq ($(ATMEGA),328P)
 ifeq (,$(wildcard fwupdate/bin-328p/FWUPDATE.SYSTEM))
 # When building *644P* and the 328P updater does *not* exist, then don't include it in the disk image.
 FWUPDATER_328P :=
+DOS33_FWUPDATER_328P :=
 endif
 endif
 
@@ -50,6 +59,7 @@ ifneq ($(ATMEGA),644P)
 ifeq (,$(wildcard fwupdate/bin-644p/FWUPDATE.SYSTEM))
 # When building *328P* and the 644P updater does *not* exist, then don't include it in the disk image.
 FWUPDATER_644P :=
+DOS33_FWUPDATER_644P :=
 endif
 endif
 
@@ -61,6 +71,7 @@ all: bin
 	make -C ipconfig $@
 	make -C allvols $@
 	make bin/$(DISK_NAME).po
+	make $(DOS33_DISK)
 
 clean:
 	make -C eeprom $@
@@ -105,6 +116,25 @@ endif
 
 list: bin/$(DISK_NAME).po
 	@$(AC) -l $<
+
+# build DOS3.3 executable
+bin-328p/FWUPDATE.DOS33: bin-328p/dan2stk500dos3.o Makefile
+	@echo "Linking $@"
+	@ld65 -C apple2-asm.cfg -S 0x800 -D __EXEHDR__=0 -vm -m bin-328p/FWUPDATE33.list -o $@ bin-328p/dan2stk500dos3.o
+
+$(DOS33_DISK): Makefile ../version.mk $(DOS33_FWUPDATER_328P) $(DOS33_FWUPDATER_644P) $(DOS33_TEMPLATE)
+	@cp $(DOS33_TEMPLATE) $@_
+ifneq (,$(DOS33_FWUPDATER_328P))
+	@echo "Adding ATMEGA328P firmware updater..."
+	@cat $(DOS33_FWUPDATER_328P) | $(AC) -p $@_ DAN2FWUPDATE.328 binary
+endif
+ifneq (,$(DOS33_FWUPDATER_644P))
+	@echo "Adding ATMEGA644P firmware updater..."
+	@cat $(DOS33_FWUPDATER_644P) | $(AC) -p $@_ DAN2FWUPDATE.644 binary
+endif
+	@mv $@_ $@
+	@cp $@ ../dsk/.
+	@$(AC) -l $@
 
 # for testing: ftp upload of ProDOS image to an DAN][ controller's SD volume
 ftp: bin/$(DISK_NAME).po

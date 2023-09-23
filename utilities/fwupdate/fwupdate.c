@@ -1,4 +1,4 @@
-/* ipconfig.c - simple configuration utility for DANII FTP/IP address.
+/* fwupdate.c - simple firmware update utility for DANII controllers.
 
   Copyright (c) 2023 Thorsten C. Brehm
 
@@ -33,15 +33,6 @@ uint8_t* INVFLG = (uint8_t*) 0x32;
 void norm()    {*INVFLG = 0xff;}
 void inverse() {*INVFLG = 0x3f;}
 
-void memcpy(uint8_t* dest, const uint8_t* src, int bytes)
-{
-  int i;
-  for (i=0;i<bytes;i++)
-  {
-    dest[i] = src[i];
-  }
-}
-
 // check if a DAN][ controller is installed in given slot
 int checkDanSlot(unsigned int slot)
 {
@@ -62,7 +53,7 @@ void main(void)
   char c=0;
   char slot=0;
   int i;
-  uint8_t* p = (uint8_t*) 0x800;
+  uint8_t* SLOTNUM  = (uint8_t*) (0x310+1);
 
   // wipe screen
   clrscr();
@@ -107,7 +98,7 @@ void main(void)
 
   if (slot <= 7)
   {
-    p[0x20] = slot;
+    *SLOTNUM = slot;
 
     printf("\n");
     printf("PRESS\n      ");

@@ -20,6 +20,12 @@
 
 include ../../version.mk
 
+FW_MAJOR := $(word 1,$(subst ., ,$(FW_VERSION)))
+FW_MINOR := $(word 2,$(subst ., ,$(FW_VERSION)))
+FW_MAINT := $(word 3,$(subst ., ,$(FW_VERSION)))
+
+VERSION_INFO := -DFW_MAJOR=$(FW_MAJOR) -DFW_MINOR=$(FW_MINOR) -DFW_MAINT=$(FW_MAINT)
+
 # build for ATMEGA "328P" or "644P"? (select by calling 'make ATMEGA=328P' or 'make ATMEGA=644P')
 ATMEGA ?= 328P
 
@@ -43,9 +49,9 @@ endif
 
 # select binary directory
 # provide a define to CC65/CA65 selecting the ATMEGA328P vs ATMEGA644P
-DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA)=1
+DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA)=1 $(VERSION_INFO)
 
-all: $(BINDIR) $(BINDIR)/FWUPDATE.SYSTEM
+all: $(BINDIR) $(BINDIR)/FWUPDATE.SYSTEM $(BINDIR)/FWUPDATE.DOS33
 
 # build ProDOS executable
 $(BINDIR)/FWUPDATE.SYSTEM: $(BINDIR)/fwupdate.o $(BINDIR)/dan2stk500.o
@@ -62,6 +68,21 @@ $(BINDIR)/fwupdate.o: fwupdate.c ../../version.mk
 $(BINDIR)/dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin
 	@echo "Assembling dan2stk500.asm"
 	@ca65 -t apple2 $(DEFINES) -o $@ $<
+
+# build DOS3.3 executable
+$(BINDIR)/FWUPDATE.DOS33: $(BINDIR)/DOS33_fwupdate.o $(BINDIR)/DOS33_dan2stk500.o Makefile
+	@echo "Linking $@"
+	@ld65 -C apple2-asm.cfg -S 0x800 $(DEFINES) -DAPPLE3=1 -vm -m $(BINDIR)/FWUPDATE.list -o $@ $(BINDIR)/DOS33_fwupdate.o $(BINDIR)/DOS33_dan2stk500.o
+
+# build STK500 updater
+$(BINDIR)/DOS33_fwupdate.o: fwupdate.asm $(BINDIR)/fwimage.bin Makefile
+	@echo "Assembling fwupdate.asm"
+	@ca65 $(DEFINES) -DAPPLE3=1 --listing $(@:.o=.lst) -o $@ $<
+
+# build STK500 updater
+$(BINDIR)/DOS33_dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin Makefile
+	@echo "Assembling dan2stk500.asm"
+	@ca65 $(DEFINES) -DAPPLE3=1 --listing $(@:.o=.lst) -o $@ $<
 
 # generate include file with content of Arduino hex file
 $(BINDIR)/fwimage.bin: $(ARDUINO_HEX_FILE) $(BINDIR)

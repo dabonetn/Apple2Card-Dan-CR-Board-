@@ -22,7 +22,7 @@ include version.mk
 
 ZIP_FILE := DANII_Release_v$(FW_VERSION).zip
 
-DISK_FILES := $(DISK_NAME).po $(DISK_NAME).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO ADTPRO-2.1.D2.DSK
+DISK_FILES := $(DISK_NAME).po $(DISK_NAME).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO ADTPRO-2.1.D2.DSK $(A3_DISK_NAME).dsk readme.txt
 
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM \
