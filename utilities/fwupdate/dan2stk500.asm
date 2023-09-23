@@ -394,7 +394,7 @@ syncretry:
     beq  nosync       ; no? Abort...
 
     dec  USR_DATA
-:   lda  #'.'+$80     ; show "."
+    lda  #'.'+$80     ; show "."
     jsr  COUT
 
     lda  #STK_GET_SYNC; send "GET_SYNC"
