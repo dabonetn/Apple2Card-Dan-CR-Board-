@@ -334,9 +334,9 @@ uint8_t read_bootblock(uint8_t rdtype, uint8_t* buf)
   if ((slot_type[0] == SLOT_TYPE_FAT)||(slot_type[1] == SLOT_TYPE_FAT))
   {
       request.sdslot  = (slot_type[0] == SLOT_TYPE_FAT) ? 0 : 1;
-      // Use file number 0xff (VOLFF.po) when loading the boot program from an SD card.
-      // For the Apple /// we use VOLA3.po - of course... :)
-      request.filenum = (rdtype == RD_A3_BOOT_BLOCK) ? 0xA3 : 0xff;
+      // Use file number 0xA2 (VOLA2.po) when loading the optional custom Apple // boot program from an SD card.
+      // For the Apple /// we use 0xA3 (VOLA3.po) - of course... :)
+      request.filenum = (rdtype == RD_A3_BOOT_BLOCK) ? 0xA3 : 0xA2;
       if (vol_read_block(buf) == 0) // success?
         return 0;
   }

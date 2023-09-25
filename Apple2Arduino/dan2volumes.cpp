@@ -138,7 +138,8 @@ bool vol_open_drive_file(void)
   // RAW format? No open required
   if (slot_type[request.sdslot] == SLOT_TYPE_RAW)
   {
-    return true;
+    // always successful for volumes 0-15 (higher numbers are currently not supported on RAW disks)
+    return (request.filenum <= 0x0F);
   }
 #endif
 

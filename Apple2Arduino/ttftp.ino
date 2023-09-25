@@ -501,12 +501,13 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
   return 226; // file transfer successful
 }
 
-// check the requested file name - and get the volume file number
-uint8_t getVolFileNo(char* Data)
+// Check the requested file name - and get the volume file number.
+// Returns  0-0xff for valid file names. 0xffff returned for bad file names.
+uint16_t getVolFileNo(char* Data)
 {
   if (2 != strMatch("VOL", Data)) // not a prefix match?
   {
-    return 255;
+    return 0xFFFF; // invalid file number
   }
 
   uint8_t fno = 0;
@@ -520,7 +521,7 @@ uint8_t getVolFileNo(char* Data)
     if ((digit>='A')&&(digit<='F'))
       digit -= 'A'-10;
     else
-      return 255; // invalid file number
+      return 0xFFFF; // invalid file number
     fno |= digit;
   }
 
@@ -613,8 +614,8 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
         }
         else
         {
-          uint8_t fno = getVolFileNo(Data);
-          if (fno >= FTP_MAX_VOL_FILES)
+          uint16_t fno = getVolFileNo(Data);
+          if (fno > 0xFF)
             ReplyCode = 553; // file name not allowed
           else
           {
