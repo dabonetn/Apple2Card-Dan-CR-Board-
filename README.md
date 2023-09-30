@@ -154,12 +154,9 @@ Each volume file needs to contain normal Apple II ProDOS volumes (between 140K t
 An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](volumes/SingleBlankVol.zip).
 
 ## Raw Block Mode
-Alternatively, raw block mode may be used (instead of FAT formatted SD cards). Only the first 512 MB will be used for raw blocks.
+Alternatively, raw block mode may be used (SD cards without any filesystem, just using raw data blocks to store the ProDOS volumes on the cards). Only the first 512 MB will be used for raw block mode.
 
 To prepare SD cards for raw block mode, use the [BlankVols.zip](volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
-
-## Wide Block Mode
-TBD: Ordinarily, only a maximum of 64 MB is addressable, 32 MB for ProDOS drive 1, and a second 32 MB for ProDOS drive 2.  The program ALLVOLS.SYSTEM allows this limit to be circumvented in ProDOS 8.  For a SD card placed in slot 1, write the image in "BlankVols" or "BlankVolsSlot1"to it, and for a SD card in slot 2, write the image file "BlankVolsSlot2" to it.  When ALLVOLS.SYSTEM is executed, extra volumes may be added from slot 1 or slot 2 depending on if a SD card with block images is present in slot 1 or slot 2.  It is recommended that slot 1 be used for block images and slot 2 be used for FAT FS images.  This way, cards can be swapped in and out of slot 2 with different files transferred from another computer (perhaps using CiderPress) while the boot filesystem in slot 1 stays the same.
 
 ## Preparing ProDOS Volumes
 ProDOS disk images can be read/written by software such as CiderPress ([a2ciderpress.com](https://a2ciderpress.com/)) so that you can use this to transfer files to and from the Apple II.
