@@ -1000,7 +1000,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 7602b2e9-a6b7-45fb-a0e8-0c06b689058a)
     )
-    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 41e4a626-c301-40ab-b3cb-e95332fe8c05)
     )
@@ -1234,7 +1234,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp b8e92abf-d2ca-46a2-bac4-5f97a866d59f)
     )
-    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 1ed3d387-f75a-40aa-a4df-e265bc13a670)
     )
@@ -3003,7 +3003,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp feec51b3-24ca-4371-a32f-832ebb9a0ee8)
     )
-    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at 0 1.27) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 2b1659e0-a1c4-4c19-8d26-d10b8be64564)
     )
@@ -3145,7 +3145,7 @@
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 1e49613e-9402-4d9f-8f8c-e7091909918e)
     )
-    (fp_text user "${REFERENCE}" (at 3.81 0 90) (layer "F.Fab")
+    (fp_text user "${REFERENCE}" (at 3.81 0 90) (layer "F.Fab") hide
       (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 7bd42648-70be-4332-a8c3-e230062b98c3)
     )
@@ -4616,6 +4616,11 @@
     )
   )
 
+  (gr_rect (start 154.33 45.48) (end 154.98 46.02) (layer "F.SilkS") (width 0.15) (fill solid) (tstamp 39d2c2a5-b17d-422e-9c14-0d835aa579bb))
+  (gr_rect (start 154.43 45.48) (end 154.43 45.48) (layer "F.SilkS") (width 0.15) (fill none) (tstamp 6b6f43c0-207b-4da8-94e7-20aeb2d9ba6a))
+  (gr_rect (start 79.68 64.02) (end 80.33 64.56) (layer "F.SilkS") (width 0.15) (fill solid) (tstamp 8fb8593c-adfa-4eff-8f29-fe76b4c57beb))
+  (gr_rect (start 154.43 45.48) (end 154.43 45.48) (layer "F.SilkS") (width 0.15) (fill none) (tstamp 97924ae2-b592-4732-83cc-ef5e2ae99b72))
+  (gr_rect (start 52.25 59.17) (end 52.9 59.71) (layer "F.SilkS") (width 0.15) (fill solid) (tstamp e0ddc121-f549-46b9-8f3d-7f970abf6b73))
   (gr_arc (start 193.04 93.47) (mid 192.739251 94.188696) (end 192.019952 94.488) (layer "Edge.Cuts") (width 0.1) (tstamp 2a5f96dd-4980-4a27-b582-95faa1f98147))
   (gr_line (start 184.277 94.488) (end 192.02 94.488) (layer "Edge.Cuts") (width 0.1) (tstamp 3e8aa164-059d-4f8c-af4e-ab8cca29e749))
   (gr_line (start 119.4 104.088) (end 183.277 104.088) (layer "Edge.Cuts") (width 0.1) (tstamp 3ee1a639-df6e-4a1c-ba81-6e4037a006bb))
