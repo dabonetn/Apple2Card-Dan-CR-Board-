@@ -18,15 +18,17 @@
 ;     misrepresented as being the original software.
 ;  3. This notice may not be removed or altered from any source distribution.
 
-.setcpu		"6502"
+.setcpu "6502"
 
-; export the interface functions
-.import setFwUpdateHook
-.import clearWarmStartVec
+; include ROM routines for Apple II or III
+.include "AppleROM.inc"
+
+; import interface functions
+.import CLEAR_WARMSTART
+.import SET_WARMSTART
 .import print
 .import MSG_ADDR
 .import SLOTNUM
-.import RESETDLY
 
 ; temp variables
 danx    = $43  ; X register value for accessing the DAN controller
@@ -34,31 +36,6 @@ buflo   = $44  ; low address of buffer
 bufhi   = $45  ; hi address of buffer
 adrlo   = $46  ; lower flash word address
 adrhi   = $47  ; upper flash word address
-
-; monitor subroutines
-BELL     = $FBE2
-HOME     = $FC58
-PRHEX    = $FDE3
-PRBYTE   = $FDDA
-RDKEY    = $FD0C
-COUT     = $FDED
-VTAB     = $FC22
-WAITLOOP = $FCA8
-MONITOR  = $FF69
-
-; generate Apple-ASCII string (with MSB set)
-.MACRO   ASCHI STR
-.REPEAT  .STRLEN (STR), C
-.BYTE    .STRAT (STR, C) | $80
-.ENDREP
-.ENDMACRO
-
-; generated string with inverted characters
-.MACRO   ASCINV STR
-.REPEAT  .STRLEN (STR), C
-.BYTE    .STRAT (STR, C) & $3F
-.ENDREP
-.ENDMACRO
 
 .MACRO   PRINT STRVAR
     LDA #<STRVAR      ; use full 16bit address, since string resource has
@@ -68,30 +45,26 @@ MONITOR  = $FF69
     JSR print
 .ENDMACRO
 
-  ; code is relocatable
+ ; code is relocatable
 .segment	"CODE"
 
-; program entry
-boot:
-    JSR HOME
+; main UPDATE utility
+.export MAIN
+MAIN:
     PRINT(MSG_WELCOME)
 
-    JSR askSlotNumber       ; ask which slot number to use
-
-    JSR setFwUpdateHook
-    LDA #$A0
-    STA RESETDLY
+    JSR askSlotNumber   ; ask which slot number to use
     LDA SLOTNUM
     BEQ abort
 
     PRINT(MSG_PRESS_START)
-    JSR RDKEY       ; wait for keypress - or CTRL-RESET
-    JSR clearWarmStartVec
+    JSR SET_WARMSTART
+    JSR RDKEY           ; wait for keypress - or CTRL-RESET
+    JSR CLEAR_WARMSTART
 
 abort:
     PRINT(MSG_ABORTED)
-stop:
-    JMP stop
+    RTS
 
 ; ask user about which slot to use (multiple cards might be plugged :) )
 askSlotNumber:
@@ -109,7 +82,11 @@ askSlotNumber:
     RTS                 ; escape=>abort
 :   CMP #'1'+128        ; <1 ?
     BMI slot_bad        ; branch when < 1
+.IFDEF APPLE3
+    CMP #'5'+128        ; >=5 ?
+.ELSE
     CMP #'8'+128        ; >=8 ?
+.ENDIF
     BPL slot_bad        ; branch when >= 8
     AND #$0F            ; convert slot number (1-7) to number
     STA SLOTNUM
@@ -145,6 +122,7 @@ checkLoop:
     BPL checkLoop       ; until all bytes were checked
     LDA #$00            ; ok, card found (return with Z=0)
     RTS
+
 ; ID to check presence of a DAN][ controller (actually a ProDOS interface header)
 DAN_ID_LEN = 8
 DAN_ID:
@@ -164,15 +142,23 @@ MSG_NO_DANII:
         ASCHI "SORRY, NO DANII CONTROLLER IN #"
         .BYTE 0
 MSG_INVALID_SLOT:
-        ASCHI "INVALID SLOT NUMBER! USE 1-7."
+        ASCHI "INVALID SLOT NUMBER! "
+.IFDEF APPLE3
+        ASCHI "USE 1-4."
+.ELSE
+        ASCHI "USE 1-7."
+.ENDIF
         .BYTE 13+128,0
 MSG_PRESS_START:
         .BYTE 13+128
         ASCHI "PRESS"
         .BYTE 13+128
         ASCHI "      "
-;        ASCINV "<CTRL-RESET>"
-        ASCINV "<RESET>"
+.IFDEF APPLE3
+        ASCINV "<RESET>"         ; just the RESET button for Apple III
+.ELSE
+        ASCINV "<CTRL-RESET>"    ; need CTRL-RESET for Apple II
+.ENDIF
         ASCHI " TO START UPDATE"
         .BYTE 13+128
         ASCHI "      OR ANY OTHER KEY TO ABORT."

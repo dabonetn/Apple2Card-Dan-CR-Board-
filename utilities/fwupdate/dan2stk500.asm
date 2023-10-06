@@ -1,7 +1,12 @@
 ; DAN][ Arduino firmware update utility: STK500 protocol driver.
 ; Copyright 2023 Thorsten C. Brehm
 
-.setcpu		"6502"
+;.DEFINE FLASH_PROG_DISABLED    ; switch to disable flash programming (for testing only)
+
+.setcpu "6502"
+
+; include ROM routines for Apple II or III
+.include "AppleROM.inc"
 
 ; export some labels
 .export FW_START
@@ -11,10 +16,8 @@
 .export SLOTNUM
 .export MSG_ADDR
 .export print
-
-.IFDEF APPLE3
-.export RESETDLY
-.ENDIF
+.export DAN2_FWUPDATE
+.import CLEAR_WARMSTART
 
 .IFDEF ATMEGA328P
   ; page size is given in words (1word = 2bytes)
@@ -34,10 +37,6 @@
 .ENDIF
 .ENDIF
 
-; export the interface functions
-.export setFwUpdateHook
-.export clearWarmStartVec
-
 ; temp variables
 danx    = $43  ; X register value for accessing the DAN controller
 buflo   = $44  ; low address of buffer
@@ -45,26 +44,9 @@ bufhi   = $45  ; hi address of buffer
 adrlo   = $46  ; lower flash word address
 adrhi   = $47  ; upper flash word address
 
-; monitor subroutines
-PRHEX    = $FDE3
-PRBYTE   = $FDDA
-RDKEY    = $FD0C
-COUT     = $FDED
-WAITLOOP = $FCA8
-MONITOR  = $FF69
-
-; Apple II monitor registers
-CH       = $24   ; horizontal cursor position
-CV       = $25
-BASL     = $28
-BASH     = $29
-
-USR_DATA = $0310
-SLOTNUM  = USR_DATA+1
-RESETDLY = USR_DATA+2
-
-SOFTEV   = $03f2 ; vector for warm start
-PWREDUP  = $03f4 ; this must = EOR #$A5 of SOFTEV+1
+; variables
+SLOTNUM  = $0310
+RETRIES  = $0311
 
 ; STK500 commands
 STK_OK              = $10
@@ -82,20 +64,6 @@ STK_SW_MINOR        = $82  ; ' '
 
 STK_DANII_TYPE      = $D2  ; custom STK parameter ID to obtain type of DANII board type (ATMEGA328P=3, ATMEGA644P=4)
 
-; generate Apple-ASCII string (with MSB set)
-.MACRO   ASCHI STR
-.REPEAT  .STRLEN (STR), C
-.BYTE    .STRAT (STR, C) | $80
-.ENDREP
-.ENDMACRO
-
-; generated string with inverted characters
-.MACRO   ASCINV STR
-.REPEAT  .STRLEN (STR), C
-.BYTE    .STRAT (STR, C) & $3F
-.ENDREP
-.ENDMACRO
-
 .MACRO   PRINT STRVAR
     LDA #<STRVAR      ; use full 16bit address, since string resource has
     STA MSG_ADDR      ; outgrown 256 bytes...
@@ -107,30 +75,6 @@ STK_DANII_TYPE      = $D2  ; custom STK parameter ID to obtain type of DANII boa
   ; code is relocatable
 .segment	"CODE"
 
-clearWarmStartVec:  ; clear the warm start hook
-    lda #$00
-    sta PWREDUP
-    sta SOFTEV
-    sta SOFTEV+1
-    rts
-
-setFwUpdateHook:    ; install warm start hook
-    lda CV          ; remember cursor position
-    sta USR_DATA+3
-    lda BASL
-    sta USR_DATA+4
-    lda BASH
-    sta USR_DATA+5
-
-    ldx #<dan2fwupdate ; address of warm start hook
-    lda #>dan2fwupdate
-setWarmStartAX:     ; address in A and X
-    stx SOFTEV      ; set lower address of hook
-    sta SOFTEV+1    ; set upper address of hook
-    eor #$A5        ; warm start magic byte
-    sta PWREDUP     ; must match (SOFTEV+1)^$A5 to trigger warm start
-    rts
-
 setupBuffer:        ; setup local buffer pointer and Arduino flash word address
     lda  #<FW_START ; load lower address of firmware data buffer
     sta  buflo
@@ -141,21 +85,8 @@ setupBuffer:        ; setup local buffer pointer and Arduino flash word address
     sta  adrlo
     rts
 
-dan2fwupdate:
-    lda USR_DATA+3   ; restore cursor position after warm start
-    sta CV
-    lda USR_DATA+4
-    sta BASL
-    lda USR_DATA+5
-    sta BASH
-
+DAN2_FWUPDATE:
     PRINT(MSG_SYNC)  ; "SYNC"
-
-.IFDEF APPLE3        ; extra delay only required for Apple ///
-    lda  RESETDLY    ; due to its weird NMI vs I/O RESET emulation
-    jsr  WAITLOOP    ; where the CPU already starts before I/O reset
-    INC  RESETDLY    ; is released.
-.ENDIF
 
     lda  SLOTNUM     ; selected slot number
     asl  a
@@ -200,7 +131,7 @@ dan2fwupdate:
     jsr  COUT
     pla
 
-    ; check if hardware type matche the type of this firmware
+    ; check if hardware type matches the type of this firmware
     cmp #DAN_CARD
     beq hw_ok
 
@@ -210,15 +141,17 @@ dan2fwupdate:
 
 hw_ok:
     ; install monitor as warmstart handler for debugging
-    lda  #>MONITOR
-    ldx  #<MONITOR
-    jsr setWarmStartAX
+;    lda  #>MONITOR
+;    ldx  #<MONITOR
+;    jsr setWarmStartAX
 
+.IFNDEF FLASH_PROG_DISABLED
     ; flash programming
     PRINT(MSG_FLASH)   ; "FLASHING"
     jsr  setupBuffer
     jsr  program
     PRINT(MSG_OK)      ; "OK!"
+.ENDIF
 
     ; verify flash content
     PRINT(MSG_VERIFY)  ; "VERIFYING"
@@ -235,7 +168,7 @@ hw_ok:
     PRINT(MSG_COMPLETE); "UPDATE COMPLETE"
 
 stop:
-    jsr  clearWarmStartVec
+    jsr  CLEAR_WARMSTART
     jmp  stop
 
 verify:
@@ -254,6 +187,10 @@ verify:
     jsr  PRHEX2
     dec  CH
     dec  CH
+.IFDEF APPLE3
+    dec  CH                ; APPLE III ROM assumes 2 bytes per character
+    dec  CH
+.ENDIF
     lda  adrhi
     cmp  #END_PAGE         ; never consider addresses matching or beyond END_PAGE (where the protected bootloader is)
     bmi  verify
@@ -276,6 +213,10 @@ program:
     jsr  PRHEX2
     dec  CH
     dec  CH
+.IFDEF APPLE3
+    dec  CH                ; APPLE III ROM assumes 2 bytes per character
+    dec  CH
+.ENDIF
     lda  adrhi
     cmp  #END_PAGE         ; never consider addresses matching or beyond END_PAGE (where the protected bootloader is)
     bmi  program
@@ -284,11 +225,11 @@ _program_done:
 
 error:
     pha
-    ldx  #MSG_ERROR-MSGS
-    jsr  print
+    PRINT(MSG_ERROR)
     pla
     jsr  PRHEX2
-    jmp  stop
+badprog:
+    jmp  badprog
 
 doSTKwriteBlock:
     lda  #STK_PROG_PAGE
@@ -388,12 +329,12 @@ error2:
 
 doSTKsync:
     lda  #80          ; give up after some attempts
-    sta  USR_DATA     ; retry counter
+    sta  RETRIES      ; retry counter
 syncretry:
-    lda  USR_DATA     ; any attempts left?
+    lda  RETRIES      ; any attempts left?
     beq  nosync       ; no? Abort...
 
-    dec  USR_DATA
+    dec  RETRIES
     lda  #'.'+$80     ; show "."
     jsr  COUT
 
@@ -419,7 +360,11 @@ syncretry:
 
 nosync:
     PRINT(MSG_NOSYNC)
+    JSR BELL
 wait:
+.IFDEF APPLE3
+     jsr RDKEY       ; need the RDKEY for Apple 3 since the cursor is otherwise not visible
+.ENDIF
      jmp wait
 
 delay:
