@@ -98,8 +98,57 @@ DAN2_FWUPDATE:
     tax
     stx  danx
 
-    lda  #$FA        ; set register A control mode to 2
-    sta  $BFFB,x     ; write to 82C55 mode register (mode 2 reg A, mode 0 reg B)
+.IFDEF APPLE3
+    ; Extra synchronisation required for Apple ///.
+    ;
+    ; Alas. Apple III has no warmstart option. The only way to implement the firmware update
+    ; is to switch the AIII to AIIEmulation mode. In thise mode, IORESET is separated from
+    ; the CPU RESET. A simple RESET triggers an IORESET - but the CPU just gets an NMI interrupt,
+    ; rather than a reset.
+    ; However, this was not properly implemented on the Apple III: the NMI _immediately_ triggers
+    ; when RESET is pressed (falling edge!), while the IORESET remains asserted _while_ RESET is
+    ; pressed. So the 6502 already starts execution of the NMI, while the IO is still in forced
+    ; RESET. And it's impossible to tell how quick a user releases the RESET button. The whole
+    ; thing seems to be a hardware bug of the Apple III - one of the little quirks, which made the
+    ; Apple III slightly incompatible. The signal to the NMI should have been inverted - so the
+    ; Apple III only executes the NMI on the rising edge of the RESET, at the same time when the
+    ; IORESET is released.
+    ; But we have to live with this quirk. So we add a simple check to detect if IORESET is already
+    ; released. We do this by reconfiguring the 8255 PIO, switching the two ROM pages - and checking
+    ; if the switch was successful. The 8255 will not react to any configuration commands until
+    ; IORESET was released.
+    LDA  SLOTNUM
+    ORA  #$C0        ; calculate slot IO address
+    STA  bufhi       ; store slot address
+    LDA  #$0B        ; offset of byte $0b: this byte is $01 on the DAN][ ROM's first bank, and $00 on its second bank
+    STA  buflo
+    LDA  #$00
+    STA  adrlo       ; reset counter
+    STA  adrhi
+IORESETWAIT:
+    INC  adrlo       ; count communication attempts
+    BNE  :+
+    INC  adrhi       ; increase upper byte
+    BNE  :+
+    JMP  nosync      ; too many attempts (65536): the card is not responding properly or IORESET is stuck
+:   LDX  danx
+    LDA  #$FA        ; set register A control mode to 2
+    STA  $BFFB,X     ; write to 82C55 mode register (mode 2 reg A, mode 0 reg B)
+    LDA  #$01        ; enable second bank
+    STA  $BFFB,X
+    LDY  #$00
+    LDA  (buflo),Y   ; read byte at known offset from DAN][ ROM
+    BNE  IORESETWAIT ; should be $00. Otherwise DAN][ card is still held in RESET => keep waiting...
+    LDA  #$00        ; enable first bank
+    STA  $BFFB,X
+    LDA  (buflo),Y   ; read byte at known offset from DAN][ ROM
+    CMP  #$01        ; should be $01. Otherwise DAN][ card is not ready yet => keep waiting...
+    BNE  IORESETWAIT
+.ELSE
+    ; Apple II. All is good. No extra hardware synchronisation required.
+    LDA  #$FA        ; set register A control mode to 2
+    STA  $BFFB,x     ; write to 82C55 mode register (mode 2 reg A, mode 0 reg B)
+.ENDIF
 
     jsr  doSTKsync   ; do STK500 synchronisation
 
