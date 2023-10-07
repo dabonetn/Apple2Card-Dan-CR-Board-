@@ -47,42 +47,71 @@ ifeq ($(ARDUINO_HEX_FILE),)
   DUMMY := $(error ERROR: Unknown DAN][ hardware type: '$(ATMEGA)'. Currently supported types: '328P' or '644P'.)
 endif
 
+APPLEII_EXECUTABLE  := $(BINDIR)/APPLEII_FWUPDATE.SYSTEM
+APPLEIII_EXECUTABLE := $(BINDIR)/APPLEIII_FWUPDATE.SOS
+
 # select binary directory
 # provide a define to CC65/CA65 selecting the ATMEGA328P vs ATMEGA644P
 DEFINES := -D__EXEHDR__=0 -DATMEGA$(ATMEGA)=1 $(VERSION_INFO)
 
-all: $(BINDIR) $(BINDIR)/FWUPDATE.SYSTEM $(BINDIR)/FWUPDATE.DOS33
+DEPENDENCIES := AppleROM.inc Makefile ../../version.mk
 
-# build ProDOS executable
-$(BINDIR)/FWUPDATE.SYSTEM: $(BINDIR)/fwupdate.o $(BINDIR)/dan2stk500.o
-	@echo "Linking $@"
-	@ld65 -C apple2-system.cfg $(DEFINES) -vm -m $(BINDIR)/FWUPDATE.list -o $@ $(BINDIR)/fwupdate.o $(BINDIR)/dan2stk500.o apple2.lib
+all: $(BINDIR) $(APPLEII_EXECUTABLE) $(APPLEIII_EXECUTABLE)
 
-# build firmware update module
-$(BINDIR)/fwupdate.o: fwupdate.c ../../version.mk
-	@echo "Compiling fwupdate.c"
-	@cc65 -t apple2 $(DEFINES) -DFW_VERSION=\"$(FW_VERSION)\" -o $(BINDIR)/fwupdate.asm fwupdate.c
-	@ca65 -t apple2 $(DEFINES) -o $@ $(BINDIR)/fwupdate.asm
+###############################################################################
+# APPLE II: ProDOS executable
+###############################################################################
 
-# build STK500 updater
-$(BINDIR)/dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin
-	@echo "Assembling dan2stk500.asm"
+# APPLE II: build ProDOS executable
+$(APPLEII_EXECUTABLE): $(BINDIR)/APPLEII_startup.o $(BINDIR)/APPLEII_fwupdate.o $(BINDIR)/APPLEII_dan2stk500.o
+	@echo "APPLE II: Linking $@"
+	@ld65 -C apple2-system.cfg $(DEFINES) -vm -m $@.list -o $@ $^
+
+# APPLE II: build APPLE II startup
+$(BINDIR)/APPLEII_startup.o: APPLEII_startup.asm $(DEPENDENCIES)
+	@echo "APPLE II: Assembling APPLEII_startup.asm"
+	@ca65 -t apple2 $(DEFINES) --listing $(@:.o=.lst) -o $@ $<
+
+# APPLE II: build main update utility
+$(BINDIR)/APPLEII_fwupdate.o: fwupdate.asm $(BINDIR)/fwimage.bin $(DEPENDENCIES)
+	@echo "APPLE II: Assembling fwupdate.asm"
+	@ca65 $(DEFINES) --listing $(@:.o=.lst) -o $@ $<
+
+# APPLE II: build STK500 updater
+$(BINDIR)/APPLEII_dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin $(DEPENDENCIES)
+	@echo "APPLE II: Assembling dan2stk500.asm"
 	@ca65 -t apple2 $(DEFINES) -o $@ $<
 
-# build DOS3.3 executable
-$(BINDIR)/FWUPDATE.DOS33: $(BINDIR)/DOS33_fwupdate.o $(BINDIR)/DOS33_dan2stk500.o Makefile
-	@echo "Linking $@"
-	@ld65 -C apple2-asm.cfg -S 0x800 $(DEFINES) -DAPPLE3=1 -vm -m $(BINDIR)/FWUPDATE.list -o $@ $(BINDIR)/DOS33_fwupdate.o $(BINDIR)/DOS33_dan2stk500.o
 
-# build STK500 updater
-$(BINDIR)/DOS33_fwupdate.o: fwupdate.asm $(BINDIR)/fwimage.bin Makefile
-	@echo "Assembling fwupdate.asm"
+###############################################################################
+# APPLE III: SOS executable
+###############################################################################
+
+# APPLE III: build executable
+$(APPLEIII_EXECUTABLE): $(BINDIR)/APPLEIII_startup.o $(BINDIR)/APPLEIII_fwupdate.o $(BINDIR)/APPLEIII_dan2stk500.o
+	@echo "APPLE III: Linking $@"
+	@ld65 -C apple3sos.cfg -S 0x1ff2 $(DEFINES) -DAPPLE3=1 -vm -m $@.list -o $@ $^
+	@da65 -S 0x1ff2 -vvvvvv $(APPLEIII_EXECUTABLE) > $(APPLEIII_EXECUTABLE).dump
+
+# APPLE III: build APPLE III startup
+$(BINDIR)/APPLEIII_startup.o: APPLEIII_startup.asm $(DEPENDENCIES)
+	@echo "APPLE III: Assembling APPLEII_startup.asm"
 	@ca65 $(DEFINES) -DAPPLE3=1 --listing $(@:.o=.lst) -o $@ $<
 
-# build STK500 updater
-$(BINDIR)/DOS33_dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin Makefile
-	@echo "Assembling dan2stk500.asm"
+# APPLE III: build main update utility
+$(BINDIR)/APPLEIII_fwupdate.o: fwupdate.asm $(DEPENDENCIES)
+	@echo "APPLE III: Assembling fwupdate.asm"
 	@ca65 $(DEFINES) -DAPPLE3=1 --listing $(@:.o=.lst) -o $@ $<
+
+# APPLE III: build STK500 updater
+$(BINDIR)/APPLEIII_dan2stk500.o: dan2stk500.asm $(BINDIR)/fwimage.bin $(DEPENDENCIES)
+	@echo "APPLE III: Assembling dan2stk500.asm"
+	@ca65 $(DEFINES) -DAPPLE3=1 --listing $(@:.o=.lst) -o $@ $<
+
+
+###############################################################################
+# Common: hex file processing
+###############################################################################
 
 # generate include file with content of Arduino hex file
 $(BINDIR)/fwimage.bin: $(ARDUINO_HEX_FILE) $(BINDIR)

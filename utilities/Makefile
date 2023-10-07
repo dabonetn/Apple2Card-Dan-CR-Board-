@@ -31,35 +31,36 @@ include ../version.mk
 # DAN2_FTP_IP    := 192.168.4.65
 # DAN2_VOL_IMAGE := /sd1/VOL0D.PO
 
-DSK_FILE := bin/$(DISK_NAME).dsk
+APPLE2_DSK_FILE := bin/$(APPLE2_DISK_NAME).dsk
 
-# Alternate DOS3.3 based firmware updater. This is intended for use on Apple /// (in Apple ][ emulation mode),
-# since the ProDOS utility cannot be used on Apple /// (ProDOS requires 64K RAM, which the A/// doesn't have in emulation mode).
-DOS33_DISK := bin/$(A3_DISK_NAME).dsk
-DOS33_TEMPLATE := templates/DOS3.3_FWUPDATE_MASTER.dsk
+# Alternate firmware updater for Apple III (native SOS).
+APPLE3_FLOPPY_TEMPLATE := templates/APPLEIII_SOS_FLOPPY_MASTER.po
+APPLE3_FLOPPY_DISK     := bin/FLOPPY_$(APPLE3_DISK_NAME).po
+APPLE3_DAN2VOL_TEMPLATE:= templates/APPLEIII_DAN2VOL_MASTER.po
+APPLE3_DAN2VOLUME      := bin/VOLxx_$(APPLE3_DISK_NAME).po
 
 ATMEGA ?= 328P
 
 # optionally include both 328P/644P updaters in the tools disk
-FWUPDATER_328P := fwupdate/bin-328p/FWUPDATE.SYSTEM
-FWUPDATER_644P := fwupdate/bin-644p/FWUPDATE.SYSTEM
+APPLE2_FWUPDATER_328P := fwupdate/bin-328p/APPLEII_FWUPDATE.SYSTEM
+APPLE2_FWUPDATER_644P := fwupdate/bin-644p/APPLEII_FWUPDATE.SYSTEM
 
-DOS33_FWUPDATER_328P := fwupdate/bin-328p/FWUPDATE.DOS33
-DOS33_FWUPDATER_644P := fwupdate/bin-644p/FWUPDATE.DOS33
+APPLE3_FWUPDATER_328P := fwupdate/bin-328p/APPLEIII_FWUPDATE.SOS
+APPLE3_FWUPDATER_644P := fwupdate/bin-644p/APPLEIII_FWUPDATE.SOS
 
 ifneq ($(ATMEGA),328P)
-ifeq (,$(wildcard fwupdate/bin-328p/FWUPDATE.SYSTEM))
+ifeq (,$(wildcard $(APPLE2_FWUPDATER_328P)))
 # When building *644P* and the 328P updater does *not* exist, then don't include it in the disk image.
-FWUPDATER_328P :=
-DOS33_FWUPDATER_328P :=
+APPLE2_FWUPDATER_328P :=
+APPLE3_FWUPDATER_328P :=
 endif
 endif
 
 ifneq ($(ATMEGA),644P)
-ifeq (,$(wildcard fwupdate/bin-644p/FWUPDATE.SYSTEM))
+ifeq (,$(wildcard $(APPLE2_FWUPDATER_644P)))
 # When building *328P* and the 644P updater does *not* exist, then don't include it in the disk image.
-FWUPDATER_644P :=
-DOS33_FWUPDATER_644P :=
+APPLE2_FWUPDATER_644P :=
+APPLE3_FWUPDATER_644P :=
 endif
 endif
 
@@ -70,8 +71,9 @@ all: bin
 	make -C fwupdate $@ ATMEGA=$(ATMEGA)
 	make -C ipconfig $@
 	make -C allvols $@
-	make bin/$(DISK_NAME).po
-	make $(DOS33_DISK)
+	make $(APPLE2_DSK_FILE)
+	make $(APPLE3_FLOPPY_DISK)
+	make $(APPLE3_DAN2VOLUME)
 
 clean:
 	make -C eeprom $@
@@ -83,61 +85,89 @@ clean:
 bin:
 	- mkdir bin
 
+###############################################################################
+# APPLE II: ProDOS volumes
+###############################################################################
+
 # build ProDOS disk image
-bin/$(DISK_NAME).po: Makefile ../version.mk $(FWUPDATER_328P) $(FWUPDATER_644P) eeprom/bin/EEPROM.PROG.SYS allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM
+$(APPLE2_DSK_FILE): Makefile ../version.mk $(APPLE2_FWUPDATER_328P) $(APPLE2_FWUPDATER_644P) eeprom/bin/EEPROM.PROG.SYS allvols/bin/ALLVOLS.SYSTEM ipconfig/bin/IPCONFIG.SYSTEM
 	@echo "Building volume $@"
-	@cp ipconfig/ProDOS_312.dsk $(DSK_FILE)
-	@$(AC) -g $(DSK_FILE) MANAGER.SYS bin/MANAGER.SYS
-	@$(AC) -g $(DSK_FILE) FORMAT.SYS  bin/FORMAT.SYS
-	@$(AC) -d $(DSK_FILE) MANAGER.SYS
-	@$(AC) -d $(DSK_FILE) FORMAT.SYS
-	@$(AC) -d $(DSK_FILE) QUIT.SYSTEM
-	@$(AC) -d $(DSK_FILE) PRO.DATE
-	@$(AC) -n $(DSK_FILE) $(DISK_NAME)
-	@cat bin/MANAGER.SYS              | $(AC) -p $(DSK_FILE) MANAGER.SYS     sys
-	@cat bin/FORMAT.SYS               | $(AC) -p $(DSK_FILE) FORMAT.SYS      sys
-ifneq (,$(FWUPDATER_328P))
+	@cp ipconfig/ProDOS_312.dsk $@_
+	@$(AC) -g $@_ MANAGER.SYS bin/MANAGER.SYS
+	@$(AC) -g $@_ FORMAT.SYS  bin/FORMAT.SYS
+	@$(AC) -d $@_ MANAGER.SYS
+	@$(AC) -d $@_ FORMAT.SYS
+	@$(AC) -d $@_ QUIT.SYSTEM
+	@$(AC) -d $@_ PRO.DATE
+	@$(AC) -n $@_ $(APPLE2_DISK_NAME)
+	@cat bin/MANAGER.SYS              | $(AC) -p $@_ MANAGER.SYS     sys
+	@cat bin/FORMAT.SYS               | $(AC) -p $@_ FORMAT.SYS      sys
+ifneq (,$(APPLE2_FWUPDATER_328P))
 	@echo "Adding ATMEGA328P firmware updater..."
 # we currently launch the 328P updater automatically. Hence, it has the ".system" suffix.
-	@cat $(FWUPDATER_328P)            | $(AC) -p $(DSK_FILE) FWUPD328.SYSTEM sys
+	@cat $(APPLE2_FWUPDATER_328P)     | $(AC) -p $@_ FWUPD328.SYSTEM sys
 endif
-ifneq (,$(FWUPDATER_644P))
+ifneq (,$(APPLE2_FWUPDATER_644P))
 	@echo "Adding ATMEGA644P firmware updater..."
 # Currently the 644P updater is added as an extra to the disk. Needs to be launched manually.
-	@cat $(FWUPDATER_644P)            | $(AC) -p $(DSK_FILE) FWUPD644.SYS    sys
+	@cat $(APPLE2_FWUPDATER_644P)     | $(AC) -p $@_ FWUPD644.SYS    sys
 endif
-	@cat eeprom/bin/EEPROM.PROG.SYS   | $(AC) -p $(DSK_FILE) EEPROM.SYS      sys
-	@cat allvols/bin/ALLVOLS.SYSTEM   | $(AC) -p $(DSK_FILE) ALLVOLS.SYS     sys
-	@cat ipconfig/bin/IPCONFIG.SYSTEM | $(AC) -p $(DSK_FILE) IPCONFIG.SYS    sys
+	@cat eeprom/bin/EEPROM.PROG.SYS   | $(AC) -p $@_ EEPROM.SYS      sys
+	@cat allvols/bin/ALLVOLS.SYSTEM   | $(AC) -p $@_ ALLVOLS.SYS     sys
+	@cat ipconfig/bin/IPCONFIG.SYSTEM | $(AC) -p $@_ IPCONFIG.SYS    sys
+	@mv $@_ $@
 	@echo "Converting to ProDOS..."
-	@python3 ipconfig/dsk2po.py $(DSK_FILE)
-	@cp $(DSK_FILE) ../dsk/.
+	@python3 ipconfig/dsk2po.py $@
+	@cp $(APPLE2_DSK_FILE) ../dsk/.
 	@cp $@ ../dsk/.
 
-list: bin/$(DISK_NAME).po
+list: bin/$(APPLE2_DISK_NAME).po
 	@$(AC) -l $<
 
-# build DOS3.3 executable
-bin-328p/FWUPDATE.DOS33: bin-328p/dan2stk500dos3.o Makefile
-	@echo "Linking $@"
-	@ld65 -C apple2-asm.cfg -S 0x800 -D __EXEHDR__=0 -vm -m bin-328p/FWUPDATE33.list -o $@ bin-328p/dan2stk500dos3.o
+###############################################################################
+# APPLE III: SOS volumes
+###############################################################################
 
-$(DOS33_DISK): Makefile ../version.mk $(DOS33_FWUPDATER_328P) $(DOS33_FWUPDATER_644P) $(DOS33_TEMPLATE)
-	@cp $(DOS33_TEMPLATE) $@_
-ifneq (,$(DOS33_FWUPDATER_328P))
+$(APPLE3_FLOPPY_DISK): Makefile ../version.mk $(APPLE3_FWUPDATER_328P) $(APPLE3_FWUPDATER_644P) $(APPLE3_FLOPPY_TEMPLATE)
+	@cp $(APPLE3_FLOPPY_TEMPLATE) $@_
+	@$(AC) -n $@_ A3DAN2FW.$(FW_VERSION)
+ifneq (,$(APPLE3_FWUPDATER_328P))
 	@echo "Adding ATMEGA328P firmware updater..."
-	@cat $(DOS33_FWUPDATER_328P) | $(AC) -p $@_ DAN2FWUPDATE.328 binary
+	@cat $(APPLE3_FWUPDATER_328P) | $(AC) -p $@_ SOS.INTERP SOS
 endif
-ifneq (,$(DOS33_FWUPDATER_644P))
+ifneq (,$(APPLE3_FWUPDATER_644P))
 	@echo "Adding ATMEGA644P firmware updater..."
-	@cat $(DOS33_FWUPDATER_644P) | $(AC) -p $@_ DAN2FWUPDATE.644 binary
+	@cat $(APPLE3_FWUPDATER_644P) | $(AC) -p $@_ DAN2FWUPDATE.644 SOS
 endif
 	@mv $@_ $@
 	@cp $@ ../dsk/.
 	@$(AC) -l $@
 
-# for testing: ftp upload of ProDOS image to an DAN][ controller's SD volume
-ftp: bin/$(DISK_NAME).po
-	@echo "FTP transfer..."
-	ftp -u apple2@$(DAN2_FTP_IP):$(DAN2_VOL_IMAGE) $<
+$(APPLE3_DAN2VOLUME): Makefile ../version.mk $(APPLE3_FWUPDATER_328P) $(APPLE3_FWUPDATER_644P) $(APPLE3_DAN2VOL_TEMPLATE)
+	@cp $(APPLE3_DAN2VOL_TEMPLATE) $@_
+	@$(AC) -n $@_ A3DAN2FW.$(FW_VERSION)
+ifneq (,$(APPLE3_FWUPDATER_328P))
+	@echo "Adding ATMEGA328P firmware updater..."
+	@cat $(APPLE3_FWUPDATER_328P) | $(AC) -p $@_ SOS.INTERP SOS
+endif
+ifneq (,$(APPLE3_FWUPDATER_644P))
+	@echo "Adding ATMEGA644P firmware updater..."
+	@cat $(APPLE3_FWUPDATER_644P) | $(AC) -p $@_ DAN2FWUPDATE.644 SOS
+endif
+	@mv $@_ $@
+	@cp $@ ../dsk/.
+	@$(AC) -l $@
+
+# for testing: ftp upload of volume image to a DAN][ controller's SD
+ftp: a2ftp
+
+# Apple II
+a2ftp: $(APPLE2_DSK_FILE:.dsk=.po)
+	@echo "FTP transfer to Apple II..."
+	ftp -u dan@$(APPLE2_DAN2_FTP_IP):$(APPLE2_DAN2_VOL_IMAGE) $<
+
+# Apple III
+a3ftp: $(APPLE3_DAN2VOLUME)
+	@echo "FTP transfer to Apple III..."
+	ftp -u dan@$(APPLE3_DAN2_FTP_IP):$(APPLE3_DAN2_VOL_IMAGE) $<
 
