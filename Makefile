@@ -20,10 +20,10 @@
 
 include version.mk
 
-ZIP_FILE := DANII_Release_v$(FW_VERSION).zip
+ZIP_FILE := Releases/DANII_Release_v$(FW_VERSION).zip
 
 DISK_FILES := $(APPLE2_DISK_NAME).po $(APPLE2_DISK_NAME).dsk ip65.po ip65.dsk ADTPRO-2.1.D2.PO ADTPRO-2.1.D2.DSK \
-              VOLxx_$(APPLE3_DISK_NAME).po FLOPPY_$(APPLE3_DISK_NAME).po readme.txt
+              VOLxx_$(APPLE3_DISK_NAME).po FLOPPY_$(APPLE3_DISK_NAME).dsk readme.txt
 
 HEX_FILE := Apple2Arduino/Apple2Arduino.ino.328p.with_bootloader.hex
 UTILS    := $(addprefix utilities/,allvols/bin/ALLVOLS.SYSTEM \
@@ -69,6 +69,7 @@ clean:
 
 release:
 	- rm -f $(ZIP_FILE)
+	@mkdir -p Releases
 	@zip $(ZIP_FILE) eprom/bin/eprom.bin $(addprefix dsk/,$(DISK_FILES)) $(HEX_FILE) $(UTILS)
 
 ftp:

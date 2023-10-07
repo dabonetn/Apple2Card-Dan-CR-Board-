@@ -1,3 +1,4 @@
+# general file suffixes
 *.o
 *.a
 Gerber*.zip
@@ -5,26 +6,32 @@ gerber*.zip
 *.gbr
 *.drl
 *.lst
-*.po
+
+# binary folders
+Releases/
 Ignore/
+temp/
 bootpg/bin
 eprom/bin
 utilities/bin
 utilities/*/bin
 utilities/*/bin-*
-dsk/*
-DANII_Release_v*.zip
-localsettings.mk
-
-# Exclude the "no bootloader" hex file:
 Apple2Arduino/bin/*
 Apple2Arduino/bin-*/*
+
+# dsk folder
+dsk/*.po
+dsk/*.dsk
+dsk/*.PO
+dsk/*.DSK
+localsettings.mk
 
 # Eclipse project
 .project
 
 # Temporary files
 *.000
+*.swp
 *.bak
 *.bck
 *.kicad_pcb-bak

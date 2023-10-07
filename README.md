@@ -25,7 +25,7 @@ You can directly download and send the [Apple2Card-v1.1.1.zip](Apple2Card/Gerber
 
 ## Jumpers
 * **JP1** is the ICSP power jumper. This needs to be closed for ICSP programming on the bench, to power the board when it is **not** plugged in an Apple II slot. Remove this jumper for ICSP programming when the board powered through an Apple II slot. This jumper doesn't matter for normal use.
-* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM, logic ICs and possibly Apple II mainboard. Should be left open if you connect an ICSP programmer to the card. Otherwise shoule be closed for normal use.
+* **JP5** is a power jumper to separate the power-supply of the ATMEGA328P from the supply of the 82C55, EPROM, logic ICs and possibly Apple II mainboard. Can be left open when you connect an ICSP programmer to the card (so only the ATMEGA is powered while ICSP programming). Otherwise should be closed for normal use.
 * **JP2** is the bank switch jumper. It **always needs to be closed**. It can be hardwired/soldered closed.
 * **JP3**, **JP4**, **JP6**, **JP7**, **JP8**, **JP9**, **JP10** are the programming jumpers. If an EEPROM is used then these need to be closed during onboard programming (see EEPROM.SYSTEM below). However, **these jumpers must remain open for normal use**.
 
@@ -115,19 +115,20 @@ The ProDOS variant of the file (.po suffix) can also be stored as a volume on th
 There is a [YT video](https://www.youtube.com/watch?v=ViGnc-YHbAo) showing the firmware update process of the controller.
 
 ## Firmware Update with Apple ///
-The firmware update is now also possible with the Apple ///.
+The firmware update is now also possible with the Apple /// - and just as convenient as for the Apple II.
 
-Since Apple /// *cannot* use the ProDOS-based firmware disks (DANIITOOL...), a separate firmware update disk is provided for Apple ///.
-This file needs to be copied to a real disk (or to a FloppyEmu).
+See the latest ZIP in [releases](https://github.com/ThorstenBr/Apple2Card/releases).
 
-The Apple /// firmware update is based on **Apple II DOS 3.3**. Therefore, it must be run in "**Apple ][ Emulation Mode**":
+Since Apple /// *cannot* use the ProDOS-based firmware disks (DANIITOOL...), a separate firmware update disk is provided.
+There is one disk image which can be copied to a real disk or to a FloppyEmu (FLOPPY_APPLE3_DAN2_FWUPDATE....po). This floppy version only works when booted on the Apple /// as drive 1 (.D1).
+There is an alternate volume image which can be stored on the SD card of the DAN][ controller itself (VOLxx_APPLE3_DAN2_FWUPDATE....po - the xx needs to be replaced with a volume number (0-F)).
 
-* Load the "**Apple ][ Emulation**" disk" first and start the machine.
-* Then load the disk "**DOS3.3_APPLEIII_FWUPDATE_....dsk**" (from the release ZIP file) and press "RETURN".
-* The machine reboots in Apple ][ mode and loads the update utility.
+This volume can be loaded directly from the DAN][ controller:
+
+* Insert the floppy containing the "**FLOPPY_APPLE3_DAN2_FWUPDATE....po**" disk and start the machine.
 * Enter the slot number of your DAN ][ Controller (**Slot 1-4** for Apple ///).
-* When the utility asks to "PRESS RESET TO START THE UPDATE", then just press the single RESET button on the Apple /// (no CTRL-RESET etc).
-* The reset timing on the Apple /// is a little tricky. If the utility reports "NO SYNC", just press RESET again (may need a few attempts).
+* When the utility asks to "PRESS RESET TO START THE UPDATE", then press the **single RESET button** on the Apple ///. Do *not* press CTRL-RESET etc.
+* The reset triggers a wam-start, resets the DAN][ controller and immediately starts the firmware update.
 
 # SD Cards
 Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
@@ -259,7 +260,7 @@ The FTP server is limited to a single connection. If you use advanced FTP client
 ![FileZilla Configuration](pics/FileZillaConfig.png)
 
 ### FTP ProDOS Features
-Notice that ProDOS volume names and volume sizes are displayed via FTP. The owner/group information is (ab)used to report the ProDOS volume name - while the normal FTP file names are the normal DOS file names.
+Note that ProDOS volume names and volume sizes are visible via FTP. The owner/group information is (ab)used to also report the ProDOS volume names. The displayed FTP file names are the normal FAT/DOS file names.
 
 ![FTP Volume Display](pics/FTPVolumeDisplay.png)
 

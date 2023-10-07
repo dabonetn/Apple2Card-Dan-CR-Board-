@@ -35,7 +35,7 @@ APPLE2_DSK_FILE := bin/$(APPLE2_DISK_NAME).dsk
 
 # Alternate firmware updater for Apple III (native SOS).
 APPLE3_FLOPPY_TEMPLATE := templates/APPLEIII_SOS_FLOPPY_MASTER.po
-APPLE3_FLOPPY_DISK     := bin/FLOPPY_$(APPLE3_DISK_NAME).po
+APPLE3_FLOPPY_DISK     := bin/FLOPPY_$(APPLE3_DISK_NAME).dsk
 APPLE3_DAN2VOL_TEMPLATE:= templates/APPLEIII_DAN2VOL_MASTER.po
 APPLE3_DAN2VOLUME      := bin/VOLxx_$(APPLE3_DISK_NAME).po
 
@@ -139,7 +139,9 @@ ifneq (,$(APPLE3_FWUPDATER_644P))
 	@echo "Adding ATMEGA644P firmware updater..."
 	@cat $(APPLE3_FWUPDATER_644P) | $(AC) -p $@_ DAN2FWUPDATE.644 SOS
 endif
-	@mv $@_ $@
+	@python3 ipconfig/dsk2po.py $@_
+	@mv $@_.po $@
+	@rm -f $@_.po $@_
 	@cp $@ ../dsk/.
 	@$(AC) -l $@
 
