@@ -591,6 +591,9 @@ void do_set_ip_config(void)
 
   // success: return 1(!=0) anyway. Sneaky trick - so we can reuse the routine from ROM and prevent it from reading further bytes
   write_dataport(1);
+
+  // trigger FTP initialization (changed IP)
+  FtpState = FTP_NOT_INITIALIZED;
 }
 
 void do_get_ip_config(void)

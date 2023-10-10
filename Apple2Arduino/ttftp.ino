@@ -90,7 +90,6 @@ const char FtpCommandList[] PROGMEM = "USER" "PASS" "SYST" "CWD " "TYPE" "QUIT" 
 
 /* Data types *********************************************************************************************/
 typedef enum {DIR_SDCARD1=0, DIR_SDCARD2=1, DIR_ROOT=2} TFtpDirectory;
-typedef enum {FTP_DISABLED=-1, FTP_NOT_INITIALIZED=0, FTP_INITIALIZED=1, FTP_CONNECTED=2} TFtpState;
 
 //                                          "-rw------- 1 volume: 123456789abcdef 12345678 Jun 10 1977 VOL01.PO\r\n"
 const char FILE_TEMPLATE[]        PROGMEM = "-rw------- 1 volume: ---             12345678 Jun 10 1977 VOL01.PO\r\n";
