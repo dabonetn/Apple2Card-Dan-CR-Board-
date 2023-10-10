@@ -24,9 +24,10 @@
   3=bootpg with improved GUI (512byte)
   4=bootpg with cursor key controls (1024byte)
   5=bootpg with IP configuration option (1536byte)
-  6=bootpg with flexible volume/SD card mapping (byte)
+  6=bootpg with flexible volume/SD card mapping
+  7=bootpg with support for 128 volumes per SD card
 */
-#define BOOTPG 6
+#define BOOTPG 7
 
 /**********************************************************************************
  DEFAULT FTP CONFIGURATION

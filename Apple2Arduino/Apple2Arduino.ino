@@ -60,6 +60,8 @@
   #include "bootpg_ipcfg_v5.h"   // with IP configuration option, v6, three boot blocks (1536bytes)
 #elif BOOTPG==6
   #include "bootpg_flex_v6.h"   // with flexible volume/SD card mapping
+#elif BOOTPG==7
+  #include "bootpg_128vols_v7.h"// with support for up to 128 volumes
 #else
   #error Selected BOOTPG is not implemented.
 #endif

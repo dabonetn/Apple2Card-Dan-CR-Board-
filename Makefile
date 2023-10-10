@@ -72,6 +72,6 @@ release:
 	@mkdir -p Releases
 	@zip $(ZIP_FILE) eprom/bin/eprom.bin $(addprefix dsk/,$(DISK_FILES)) $(HEX_FILE) $(UTILS)
 
-ftp:
+ftp a2ftp a3ftp:
 	make -C utilities $@ ATMEGA=$(ATMEGA)
 

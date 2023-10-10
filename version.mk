@@ -1,5 +1,5 @@
 
-FW_VERSION := 3.3.3
+FW_VERSION := 3.4.0
 
 # firmware update volume for Apple II
 APPLE2_DISK_NAME := DANIITOOL.$(FW_VERSION)
