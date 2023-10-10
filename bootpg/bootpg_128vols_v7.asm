@@ -145,8 +145,6 @@ LOADOK:
          STA VOLPAGE
          JSR SETVID           ; set to IN#0/PR#0 just in case
          JSR SETKBD
-         JSR SHOW_TITLE       ; show header/footer lines
-         JSR SHOWSD
          JSR DAN_GETVOL       ; get volume numbers
          JSR PREVIOUS_VOLUMES ; load default value (previously selected volumes)
          JSR ASKVOL           ; ask for new user selection
@@ -210,7 +208,7 @@ UNITLOOP:
          RTS
 
 PREVIOUS_VOLUMES:
-         LDA GVOLDRIVE0       ; load default value (currently selected drive)
+         LDA GVOLDRIVE0  ; load default value (currently selected drive)
          STA VOLDRIVE0
          LDA GVOLDRIVE1
          STA VOLDRIVE1
@@ -236,11 +234,11 @@ DISPCUR:                 ; show current volume numbers
          LDA #20
          STA CH
          JSR DRVMSG1
-         LDA #$01            ; show selection for drives 1+0
+         LDA #$01             ; show selection for drives 1+0
          STA DRIVE
 :        JSR SHOW_VOLNUM
          DEC DRIVE
-         BPL :-              ; both drives displayed?
+         BPL :-               ; both drives displayed?
          PLA
          STA DRIVE
          RTS
@@ -256,6 +254,8 @@ ABORT:
 
 ; ask for volume selection(s)
 ASKVOL:
+         JSR SHOW_TITLE    ; show header/footer lines
+         JSR SHOWSD
          LDA VOLDRIVE0
          AND #$70          ; preselect volume page for first volume
          STA VOLPAGE       ; remember initial page
@@ -389,7 +389,8 @@ NONUM:
 IPCONFIG:
          JSR SHOW_TITLE
          JSR SHOWIP       ; show current IP address
-         JMP NEWIP        ; enter new IP address
+         JSR NEWIP        ; enter new IP address
+         JMP ASKVOL
 
 DVHEX:   CMP #$FF
          BEQ DSPEC
@@ -399,7 +400,7 @@ DSPEC:
          JMP COUT
 
 SHOW_TITLE:
-         JSR HOME        ; clear screen
+         JSR HOME           ; clear screen
          LDA #(VOLSEL-MSGS) ; show title
          JSR DISPTITLE
          LDA #23
@@ -426,7 +427,7 @@ SHOW_VOL_SELECT:
 VLSEL2:  LDY #$02          ; SD2
 VLSEL:   TYA
          JSR PRHEX         ; show "1" or "2" (for SD1/SD2)
-         INC CH            ; skip one byte for "/"
+         INC CH            ; skip one character for "/"
          PLA
          AND #$7F          ; mask MSB
          JSR DVHEX         ; show volume selection number
@@ -806,14 +807,6 @@ UPDATE_SELECTION:
          INC DRIVE         ; drive 2
          JMP REDRAW_LINE
 
-REBOOT:
-         PHP
-         JSR SHOW_SELECTION; show current selection
-         LDA #22           ; show ok/error in row 22
-         JSR GOTOROW
-         LDA #17           ; center horizontally
-         STA CH
-         PLP
 SHOW_CFG_RESULT:
          LDX #(OKMSG-MSGS)
          BCC SHOW_MSG
@@ -826,8 +819,17 @@ DELAY:
          JSR WAITLOOP
          DEX
          BNE DELAY
+         JMP HOME          ; clear screen
 
-         JSR HOME          ; clear screen
+REBOOT:
+         PHP
+         JSR SHOW_SELECTION; show current selection
+         LDA #22           ; show ok/error in row 22
+         JSR GOTOROW
+         LDA #17           ; center horizontally
+         STA CH
+         PLP
+         JSR SHOW_CFG_RESULT
 .IFDEF SIM_DEBUG
 :        JMP :-            ; loop forever
 .ELSE
