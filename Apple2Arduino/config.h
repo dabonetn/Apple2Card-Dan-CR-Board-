@@ -59,8 +59,8 @@
 /**********************************************************************************
  MISCELLANEOUS SETTINGS
  *********************************************************************************/
-// Maximum number of VOLxx.PO files supported by FTP (16 for VOL00.PO - VOL0F.PO are enough)
-#define FTP_MAX_VOL_FILES 16
+// Maximum number of VOLxx.PO files supported by FTP (usually 128 for VOL00.PO - VOL7F.PO)
+#define FTP_MAX_VOL_FILES 128
 
 // Enable/disable the use of the customized Ethernet library. This library saves a lot of
 // space, removes some workarounds which are not needed for the DAN][ card. The customized

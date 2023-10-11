@@ -42,6 +42,7 @@ uint8_t vol_filename_length = 11; // we can switch the vol_filename template to 
 // map number 0-$F to single hex character
 uint8_t hex_digit(uint8_t ch)
 {
+  ch &= 0xf;
   return (ch < 10) ? (ch + '0') : (ch + ('A'- 10));
 }
 
