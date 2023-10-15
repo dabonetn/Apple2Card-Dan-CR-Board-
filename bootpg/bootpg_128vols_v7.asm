@@ -15,6 +15,8 @@
 
 ; row where to start showing the volume names
 MENU_ROW   = 4
+; row where the SD input prompts are shown
+INPUT_ROW  = 21
 
 INSTRUC    = $F0
 LOWBT      = $F1
@@ -214,7 +216,8 @@ PREVIOUS_VOLUMES:
          STA VOLDRIVE1
          RTS
 
-SHOWSD:
+; show SD1/2 messages above the volume list
+SHOWSDLABELS:
          LDY #$00
          STY CH
          LDY #$03
@@ -225,10 +228,11 @@ SHOWSD:
          STY CH
          JMP SD2MSG
 
-DISPCUR:                 ; show current volume numbers
-         LDA DRIVE
+; show currently selected SD cards and volumes for both drives
+DISPCUR:                      ; show current volume numbers
+         LDA DRIVE            ; remember currently active DRIVE
          PHA
-         LDA #21         ; row 21
+         LDA #INPUT_ROW       ; row for input prompts
          JSR GOTOROW
          JSR DRVMSG0
          LDA #20
@@ -237,16 +241,15 @@ DISPCUR:                 ; show current volume numbers
          LDA #$01             ; show selection for drives 1+0
          STA DRIVE
 :        JSR SHOW_VOLNUM
-         DEC DRIVE
-         BPL :-               ; both drives displayed?
+         DEC DRIVE            ; next drive (drive 0)
+         BPL :-               ; both drives already displayed?
          PLA
-         STA DRIVE
+         STA DRIVE            ; restore currently active DRIVE
          RTS
 
 ABORT:
          JSR WIPE_SELECTION   ; clear selected volumes
          JSR PREVIOUS_VOLUMES ; restore previous volume selection
-         JSR DISPCUR          ; show selected volume numbers
          PLA
          PLA
          CLC
@@ -255,7 +258,7 @@ ABORT:
 ; ask for volume selection(s)
 ASKVOL:
          JSR SHOW_TITLE    ; show header/footer lines
-         JSR SHOWSD
+         JSR SHOWSDLABELS  ; show SD1/2 title above the volume list
          LDA VOLDRIVE0
          AND #$70          ; preselect volume page for first volume
          STA VOLPAGE       ; remember initial page
@@ -399,6 +402,7 @@ DSPEC:
          LDA #'!'+128
          JMP COUT
 
+; show top and bottom title bars
 SHOW_TITLE:
          JSR HOME           ; clear screen
          LDA #(VOLSEL-MSGS) ; show title
@@ -408,6 +412,7 @@ SHOW_TITLE:
          LDA #(A2FOREVER-MSGS) ; show title
          JMP DISPTITLE
 
+; show selected SD card and volume for current DRIVE(=0|1)
 SHOW_VOLNUM:
          LDX #11           ; X position: left half of screen
          LDA DRIVE         ; drive 0 or 1?
@@ -506,8 +511,11 @@ REDRAW1:
 :        LDY #24           ; show in right half of the screen
 SHOW_CARD0:
          STY CH            ; store cursor X position
-         AND #$0F          ; mask volume number
-         CLC
+         AND #$7F          ; mask volume number
+         EOR VOLPAGE       ; clear volume page bits (if they match)
+         CMP #$10          ; selection beyond 16? (other page)
+         BCS NO_SHOW       ; do not show when selection is on other page
+                           ; carry is already clear
          ADC #MENU_ROW     ; Y-offset
          STA CV            ; store cursor Y position
          JSR VTAB          ; calculate screen address
@@ -799,13 +807,14 @@ SHOW_SELECTION:            ; highlight selected volume names
 WIPE_SELECTION:            ; normal display of selected volume names
          LDA #NORMAL       ; show drive selection in normal text (wipes selection)
 UPDATE_SELECTION:
-         PHA               ; save display style
-         LDX #$00          ; drive 1
+         LDX #$01          ; drive 2
          STX DRIVE
+:        PHA               ; save display style
          JSR REDRAW_LINE
          PLA               ; restore display style
-         INC DRIVE         ; drive 2
-         JMP REDRAW_LINE
+         DEC DRIVE         ; drive 1
+         BPL :-
+         RTS
 
 SHOW_CFG_RESULT:
          LDX #(OKMSG-MSGS)
@@ -823,6 +832,7 @@ DELAY:
 
 REBOOT:
          PHP
+         JSR DISPCUR          ; show selected volume numbers
          JSR SHOW_SELECTION; show current selection
          LDA #22           ; show ok/error in row 22
          JSR GOTOROW
