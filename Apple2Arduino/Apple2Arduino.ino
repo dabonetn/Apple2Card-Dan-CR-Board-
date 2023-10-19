@@ -87,8 +87,8 @@
 #define EEPROM_SLOT0   1
 #define EEPROM_SLOT1   2
 #define EEPROM_A2SLOT  3
-#define EEPROM_MAC_IP  4 // bytes 4-9: MAC + IP address for FTP server
-#define EEPROM_FREE   10 // next available byte, for future extensions
+#define EEPROM_MAC_IP  4 // bytes 4-13: MAC + IP address for FTP server
+#define EEPROM_FREE   14 // next available byte, for future extensions
 
 #ifdef USE_ETHERNET
 uint8_t ethernet_initialized = 0;
