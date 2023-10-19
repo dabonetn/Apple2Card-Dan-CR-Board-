@@ -33,6 +33,7 @@ FATFS     current_fs;            // the FATFS which is currently mounted
 FIL       current_file;          // the FAT file which is currently mounted
 uint8_t   current_filenum = INVALID_FILENUM; // the file number which is currently accessed (FAT or RAW)
 int8_t    slot_type[2]  = {SLOT_TYPE_UNKNOWN, SLOT_TYPE_UNKNOWN}; // the detected disk format (RAW/FAT/nothing)
+uint8_t   max_volumes[2];        // maximum allowed number of volumes for each SD card (depends on disk size)
 
 char vol_filename[] = "X:BLKDEVXX.PO"; // the currently mounted drive (and file)
 uint8_t vol_filename_length = 11; // we can switch the vol_filename template to "X:VOLxx.PO" and shorten the name
@@ -121,6 +122,14 @@ void vol_check_sdslot_type(void)
         return;
       }
 
+      // get disk size and calculate maximum possible number of volumes
+      uint32_t SectorCount;
+      if (disk_ioctl(request.sdslot, GET_SECTOR_COUNT, &SectorCount) == 0)
+      {
+        SectorCount >>= 16; // divide by 65536 to obtain number of volumes
+        max_volumes[request.sdslot] = (SectorCount > 128) ? 128 : SectorCount;
+      }
+
       // seems legit: raw block disk with ProDOS header in volume 1
       slot_type[request.sdslot] = SLOT_TYPE_RAW;
 #endif
@@ -139,8 +148,8 @@ bool vol_open_drive_file(void)
   // RAW format? No open required
   if (slot_type[request.sdslot] == SLOT_TYPE_RAW)
   {
-    // always successful for volumes 0-15 (higher numbers are currently not supported on RAW disks)
-    return (request.filenum <= 0x0F);
+    // successful when within allowed range of volumes
+    return (request.filenum < max_volumes[request.sdslot]);
   }
 #endif
 

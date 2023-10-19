@@ -832,7 +832,7 @@ DELAY:
 
 REBOOT:
          PHP
-         JSR DISPCUR          ; show selected volume numbers
+         JSR DISPCUR       ; show selected volume numbers
          JSR SHOW_SELECTION; show current selection
          LDA #22           ; show ok/error in row 22
          JSR GOTOROW
