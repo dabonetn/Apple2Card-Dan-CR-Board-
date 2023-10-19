@@ -116,6 +116,11 @@ BYTE xchg_spi (		/* Returns received data */
 	return SPDR;
 }
 
+/* Send 0xFF */
+static BYTE xchg_spi_FF()
+{
+    return xchg_spi(0xFF);
+}
 
 /* Receive a data block fast */
 static
@@ -162,11 +167,11 @@ int wait_ready (	/* 1:Ready, 0:Timeout */
 )
 {
 	BYTE d;
-  uint16_t intime;
+	uint16_t intime;
 
 	intime = millis();
 	do {
-		d = xchg_spi(0xFF);
+		d = xchg_spi_FF();
 	} while (d != 0xFF && (((int16_t)(((uint16_t)millis())-intime)) < wt));
 
 	mmc_busy = (d != 0xff); /* remember when MMC is busy */
@@ -184,7 +189,7 @@ static
 void deselect (void)
 {
 	CS_HIGH();		/* Set CS# high */
-	xchg_spi(0xFF);	/* Dummy clock (force DO hi-z for multiple slave SPI) */
+	xchg_spi_FF();	/* Dummy clock (force DO hi-z for multiple slave SPI) */
 }
 
 
@@ -197,7 +202,7 @@ static
 int select (void)	/* 1:Successful, 0:Timeout */
 {
 	CS_LOW();		/* Set CS# low */
-	xchg_spi(0xFF);	/* Dummy clock (force DO enabled) */
+	xchg_spi_FF();	/* Dummy clock (force DO enabled) */
 
 	if (wait_ready(500)) return 1;	/* Leading busy check: Wait for card ready */
 
@@ -244,13 +249,13 @@ int rcvr_datablock (
     uint16_t intime = millis();
 
 	do {							/* Wait for data packet in timeout of 200ms */
-		token = xchg_spi(0xFF);
+		token = xchg_spi_FF();
 	} while ((token == 0xFF) && (((int16_t)(((uint16_t)millis())-intime)) < 200));
-	if (token != 0xFE) return 0;	/* If not valid data token, retutn with error */
+	if (token != 0xFE) return 0;	/* If not valid data token, return with error */
 
 	rcvr_spi_multi(buff, btr);		/* Receive the data block into buffer */
-	xchg_spi(0xFF);					/* Discard CRC */
-	xchg_spi(0xFF);
+	xchg_spi_FF();					/* Discard CRC */
+	xchg_spi_FF();
 
 	return 1;						/* Return with success */
 }
@@ -275,11 +280,11 @@ int xmit_datablock (
 	if (token == 0xFD) return 1;		/* Do not send data if token is StopTran */
 
 	xmit_spi_multi(buff, 512);			/* Data */
-	xchg_spi(0xFF); xchg_spi(0xFF);		/* Dummy CRC */
+	xchg_spi_FF(); xchg_spi_FF();		/* Dummy CRC */
 
-	resp = xchg_spi(0xFF);				/* Receive data resp */
+	resp = xchg_spi_FF();				/* Receive data resp */
 
-	mmc_busy = (xchg_spi(0xff) != 0xff);	/* after each write: remember MMC busy state */
+	mmc_busy = (xchg_spi_FF() != 0xff);	/* after each write: remember MMC busy state */
 
 	return (resp & 0x1F) == 0x05 ? 1 : 0;	/* Data was accepted or not */
 
@@ -297,7 +302,6 @@ BYTE send_cmd (		/* Returns R1 resp (bit7==1:Send failed) */
 )
 {
 	BYTE n, res;
-
 
 	if (cmd & 0x80) {	/* ACMD<n> is the command sequense of CMD55-CMD<n> */
 		cmd &= 0x7F;
@@ -323,10 +327,10 @@ BYTE send_cmd (		/* Returns R1 resp (bit7==1:Send failed) */
 	xchg_spi(n);
 
 	/* Receive command response */
-	if (cmd == CMD12) xchg_spi(0xFF);		/* Skip a stuff byte when stop reading */
+	if (cmd == CMD12) xchg_spi_FF();		/* Skip a stuff byte when stop reading */
 	n = 10;								/* Wait for a valid response in timeout of 10 attempts */
 	do
-		res = xchg_spi(0xFF);
+		res = xchg_spi_FF();
 	while ((res & 0x80) && --n);
 
 	return res;			/* Return with the response value */
@@ -351,7 +355,6 @@ DSTATUS mmc_disk_initialize (void)
 
 	if ((Stat[slotno] & STA_NOINIT) == 0) return Stat[slotno];  /* Already initialized? */
 
-
 #if 0 // power_off is not implemented anyway, so we neither need the voltage drain delay
 	power_off();						/* Turn off the socket power to reset the card */
 	delay(100);
@@ -360,7 +363,7 @@ DSTATUS mmc_disk_initialize (void)
 
 	power_on();							/* Turn on the socket power */
 	FCLK_SLOW();
-	for (n = 10; n; n--) xchg_spi(0xFF);	/* 80 dummy clocks */
+	for (n = 10; n; n--) xchg_spi_FF();	/* 80 dummy clocks */
 
 	/* send CMD0="GO IDLE" command to reset the SD card. Since we haven't done a physical reset,
 	 hence, we don't know its current state, we may need to repeat & briefly wait
@@ -376,14 +379,14 @@ DSTATUS mmc_disk_initialize (void)
 	    uint16_t intime = millis(), curtime;
 
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* Is the card SDv2? */
-			for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);	/* Get trailing return value of R7 resp */
+			for (n = 0; n < 4; n++) ocr[n] = xchg_spi_FF();	/* Get trailing return value of R7 resp */
 
 			if (ocr[2] == 0x01 && ocr[3] == 0xAA) {				/* The card can work at vdd range of 2.7-3.6V */
 				while ((((int16_t)(((uint16_t)millis())-intime)) < 1000) && send_cmd(ACMD41, 1UL << 30));
  				/* Wait for leaving idle state (ACMD41 with HCS bit) */
 
 				if ((((int16_t)(((uint16_t)millis())-intime)) < 1000) && send_cmd(CMD58, 0) == 0) {		/* Check CCS bit in the OCR */
-					for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);
+					for (n = 0; n < 4; n++) ocr[n] = xchg_spi_FF();
 					ty = (ocr[0] & 0x40) ? CT_SDC2 | CT_BLOCK : CT_SDC2;	/* Check if the card is SDv2 */
 				}
 			}
@@ -437,7 +440,6 @@ DRESULT mmc_disk_read (
 	BYTE cmd;
 	DWORD sect = (DWORD)sector;
 
-
 	if (!count) return RES_PARERR;
 	if (Stat[slotno] & STA_NOINIT) return RES_NOTRDY;
 
@@ -471,7 +473,6 @@ DRESULT mmc_disk_write (
 )
 {
 	DWORD sect = (DWORD)sector;
-
 
 	if (!count) return RES_PARERR;
 	if (Stat[slotno] & STA_NOINIT) return RES_NOTRDY;
@@ -545,9 +546,9 @@ DRESULT mmc_disk_ioctl (
 	case GET_BLOCK_SIZE :	/* Get erase block size in unit of sector (DWORD) */
 		if (CardType[slotno] & CT_SDC2) {	/* SDv2? */
 			if (send_cmd(ACMD13, 0) == 0) {	/* Read SD status */
-				xchg_spi(0xFF);
+				xchg_spi_FF();
 				if (rcvr_datablock(csd, 16)) {				/* Read partial block */
-					for (n = 64 - 16; n; n--) xchg_spi(0xFF);	/* Purge trailing data */
+					for (n = 64 - 16; n; n--) xchg_spi_FF();	/* Purge trailing data */
 					*(DWORD*)buff = 16UL << (csd[10] >> 4);
 					res = RES_OK;
 				}
@@ -587,15 +588,15 @@ DRESULT mmc_disk_ioctl (
 
 	case MMC_GET_OCR :		/* Receive OCR as an R3 resp (4 bytes) */
 		if (send_cmd(CMD58, 0) == 0) {	/* READ_OCR */
-			for (n = 4; n; n--) *ptr++ = xchg_spi(0xFF);
+			for (n = 4; n; n--) *ptr++ = xchg_spi_FF();
 			res = RES_OK;
 		}
 		deselect();
 		break;
 
-	case MMC_GET_SDSTAT :	/* Receive SD statsu as a data block (64 bytes) */
+	case MMC_GET_SDSTAT :	/* Receive SD status as a data block (64 bytes) */
 		if (send_cmd(ACMD13, 0) == 0) {	/* SD_STATUS */
-			xchg_spi(0xFF);
+			xchg_spi_FF();
 			if (rcvr_datablock(ptr, 64)) res = RES_OK;
 		}
 		deselect();

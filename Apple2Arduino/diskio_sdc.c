@@ -11,18 +11,29 @@
 #include "diskio_sdc.h"		/* FatFs lower layer API */
 #include "mmc_avr.h"	/* Header file of existing SD control module */
 
+/*-----------------------------------------------------------------------*/
+/* Prepare Drive Access                                                  */
+/*-----------------------------------------------------------------------*/
+
+static void disk_prep (
+	BYTE pdrv		/* Physical drive number to identify the drive */
+)
+{
+  if (slotno != pdrv)
+    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
+  slotno = pdrv;        // remember the current drive
+}
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
 /*-----------------------------------------------------------------------*/
 
+
 DSTATUS disk_status (
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
-  if (slotno != pdrv)
-    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
-  slotno = pdrv;
+  disk_prep(pdrv);
   return mmc_disk_status();
 }
 
@@ -33,12 +44,10 @@ DSTATUS disk_status (
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_initialize (
-	BYTE pdrv				/* Physical drive nmuber to identify the drive */
+	BYTE pdrv				/* Physical drive number to identify the drive */
 )
 {
-  if (slotno != pdrv)
-    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
-  slotno = pdrv;
+  disk_prep(pdrv);
   return mmc_disk_initialize();
 }
 
@@ -49,15 +58,13 @@ DSTATUS disk_initialize (
 /*-----------------------------------------------------------------------*/
 
 DRESULT disk_read (
-	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv,		/* Physical drive number to identify the drive */
 	BYTE *buff,		/* Data buffer to store read data */
 	LBA_t sector,	/* Sector address in LBA */
 	UINT count		/* Number of sectors to read */
 )
 {
-  if (slotno != pdrv)
-    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
-  slotno = pdrv;
+  disk_prep(pdrv);
   return mmc_disk_read(buff, sector, count);
 }
 
@@ -69,15 +76,13 @@ DRESULT disk_read (
 
 #if !FF_FS_READONLY
 DRESULT disk_write (
-	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
+	BYTE pdrv,			/* Physical drive number to identify the drive */
 	const BYTE *buff,	/* Data to be written */
 	LBA_t sector,		/* Sector address in LBA */
 	UINT count			/* Number of sectors to write */
 )
 {
-  if (slotno != pdrv)
-    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
-  slotno = pdrv;
+  disk_prep(pdrv);
   return mmc_disk_write(buff, sector, count);
 }
 #endif
@@ -89,14 +94,12 @@ DRESULT disk_write (
 
 #if _USE_IOCTL
 DRESULT disk_ioctl (
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
+	BYTE pdrv,		/* Physical drive number (0..) */
 	BYTE cmd,		/* Control code */
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-  if (slotno != pdrv)
-    mmc_wait_busy_spi();  // make sure the other slot is not busy/blocking the SPI
-  slotno = pdrv;
+  disk_prep(pdrv);
   return mmc_disk_ioctl(cmd, buff);
 }
 #endif
