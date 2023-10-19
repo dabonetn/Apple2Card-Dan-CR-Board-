@@ -301,6 +301,10 @@ uint32_t getProdosVolumeInfo(uint8_t* ProdosHeader, char* pVolName, uint32_t Fil
 {
   // read PRODOS volume name from header
   file_seek(PRODOS_VOLUME_HEADER>>9);
+
+  if (pVolName)
+    pVolName[0] = 0; // volume name (still) invalid
+
   if (0==vol_read_block(ProdosHeader))
   {
     uint8_t len = ProdosHeader[4] ^ 0xf0; // top 4 bits must be set for PRODOS volume name lengths
@@ -330,10 +334,6 @@ uint32_t getProdosVolumeInfo(uint8_t* ProdosHeader, char* pVolName, uint32_t Fil
         FileBlocks = ProdosBlocks;
     }
   }
-  else
-  if ((pVolName)&&(slot_type[request.sdslot] == SLOT_TYPE_FAT))
-    pVolName[0] = 0; // FAT file is unreadable/corrupt
-
   return FileBlocks;
 }
 
