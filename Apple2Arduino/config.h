@@ -66,5 +66,4 @@
 // space, removes some workarounds which are not needed for the DAN][ card. The customized
 // library should normally be enabled. Otherwise the stock Arduino library is used - which
 // should only be done for reference/comparisons.
-// TBD: The customized lib is prepared, but not yet tested. So we keep it disabled for now...
 #define FEATURE_CUSTOM_ETHERNET_LIBRARY

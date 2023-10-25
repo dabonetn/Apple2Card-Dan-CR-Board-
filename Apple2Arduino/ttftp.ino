@@ -79,13 +79,14 @@ EthernetClient FtpDataClient;
 #define FTP_CMD_CDUP  8
 #define FTP_CMD_RETR  9
 #define FTP_CMD_STOR 10
-#define FTP_CMD_PWD  11
+#define FTP_CMD_PORT 11
+#define FTP_CMD_PWD  12
 
 // offset of the PRODOS volume header
 #define PRODOS_VOLUME_HEADER   0x400
 
 /* Matching FTP Command strings (4byte per command) */
-const char FtpCommandList[] PROGMEM = "USER" "PASS" "SYST" "CWD " "TYPE" "QUIT" "PASV" "LIST" "CDUP" "RETR" "STOR" "PWD\x00";
+const char FtpCommandList[] PROGMEM = "USER" "PASS" "SYST" "CWD " "TYPE" "QUIT" "PASV" "LIST" "CDUP" "RETR" "STOR" "PORT" "PWD\x00";
                                        //"RNFR" "RNTO" "EPSV SIZE DELE MKD RMD"
 
 /* Data types *********************************************************************************************/
@@ -104,12 +105,14 @@ const char ROOT_DIR_TEMPLATE[]    PROGMEM = "257 \"/SD1\"";
 const char PASSIVE_MODE_REPLY[]   PROGMEM = "227 Entering Passive Mode (";
 
 const char FTP_WELCOME[]          PROGMEM = "Welcome to DAN][, v" FW_VERSION ". Apple ][ Forever!";
-const char FTP_NO_FILE[]          PROGMEM = "No such file/folder";
+const char FTP_NO_FILE[]          PROGMEM = "No such file";
 const char FTP_TOO_LARGE[]        PROGMEM = "File too large";
 const char FTP_BAD_FILENAME[]     PROGMEM = "Bad filename";
 const char FTP_FILE_ERR[]         PROGMEM = "I/O error";
 const char FTP_DAN2[]             PROGMEM = "DAN][";
 const char FTP_BYE[]              PROGMEM = "Bye.";
+const char FTP_UNSUPPORTED[]      PROGMEM = "Unsupported";
+const char FTP_BAD_MODE[]         PROGMEM = "Use pasv ftp";
 #ifdef FTP_PASSWORD
 const char FTP_NEED_PASSWORD[]    PROGMEM = "Need password";
 #endif
@@ -130,12 +133,6 @@ struct
 int8_t  FtpState = FTP_NOT_INITIALIZED;
 
 extern int __heap_start, *__brkval;
-
-#if 1
-  void FTP_CMD_REPLY(char* buf, uint16_t sz) {buf[sz] = '\r';buf[sz+1]='\n';FtpCmdClient.write(buf, sz+2);}
-#else
-  void FTP_CMD_REPLY(char* buf, uint16_t sz)  {buf[sz] = '\r';buf[sz+1]='\n';FtpCmdClient.write(buf, sz+2);Serial.write(buf, sz+2);}
-#endif
 
 // simple string compare - avoiding more expensive compare in stdlib
 // returns:
@@ -205,6 +202,16 @@ char* strPrintInt(char* pStr, uint32_t data, uint32_t maxDigit=10000, char fillB
   return &pStr[i];
 }
 
+void ftpCmdReply(char* buf, uint16_t sz)
+{
+  buf[sz] = '\r';
+  buf[sz+1]='\n';
+  FtpCmdClient.write(buf, sz+2);
+#if 0
+  Serial.write(buf, sz+2);
+#endif
+}
+
 void ftpSendReply(char* buf, uint16_t code)
 {
   // set three-digit reply code
@@ -222,6 +229,8 @@ void ftpSendReply(char* buf, uint16_t code)
     case 331: msg = FTP_NEED_PASSWORD;break;
 #endif
     case 451: msg = FTP_FILE_ERR;break;
+    case 502: msg = FTP_UNSUPPORTED;break;
+    case 521: msg = FTP_BAD_MODE;break;
     case 550: msg = FTP_NO_FILE;break;
     case 552: msg = FTP_TOO_LARGE;break;
     case 553: msg = FTP_BAD_FILENAME;break;
@@ -243,7 +252,7 @@ void ftpSendReply(char* buf, uint16_t code)
     }
   }
 #endif
-  FTP_CMD_REPLY(buf, sz);
+  ftpCmdReply(buf, sz);
 }
 
 // wait and accept for an incomming data connection
@@ -397,7 +406,7 @@ void ftpHandleDirectory(char* buf)
 }
 
 // receive or send file data: return FTP reply code
-uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
+uint16_t ftpHandleFileData(uint8_t* buf, uint8_t fileno, bool Read)
 {
   uint32_t FileBlocks;
   if (!ftpSelectFile(fileno, &FileBlocks))
@@ -410,7 +419,7 @@ uint16_t ftpHandleFileData(char* buf, uint8_t fileno, bool Read)
   if (Read)
   {
     // obtain ProDOS file size for reading
-    FileBlocks = getProdosVolumeInfo((uint8_t*) buf, NULL, FileBlocks);
+    FileBlocks = getProdosVolumeInfo(buf, NULL, FileBlocks);
     // read from disk and send to remote
     // we only send the data for the ProDOS drive - the physical VOLxx.PO file may be larger...
     while (blknum < FileBlocks)
@@ -592,9 +601,12 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
       s = strPrintInt(s, FtpMacIpPortData[OFFSET_IP+i], 100, 0);
       }
       *(s++) = ')';
-      FTP_CMD_REPLY(buf, (s-buf));
+      ftpCmdReply(buf, (s-buf));
       break;
     }
+    case FTP_CMD_PORT:
+      ReplyCode = 521; // bad "active connection" attempt: use passive FTP instead
+      break;
     case FTP_CMD_LIST:
     case FTP_CMD_RETR:
     case FTP_CMD_STOR:
@@ -618,7 +630,7 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
             ReplyCode = 553; // file name not allowed
           else
           {
-            ReplyCode = ftpHandleFileData(buf, fno, (CmdId == FTP_CMD_RETR));
+            ReplyCode = ftpHandleFileData((uint8_t*)buf, fno, (CmdId == FTP_CMD_RETR));
             mmc_wait_busy_spi(); // check f_write is completed/SPI released
           }
         }
@@ -637,13 +649,13 @@ void ftpCommand(char* buf, int8_t CmdId, char* Data)
       if (Ftp.Directory == DIR_ROOT)
       {
         buf[6] = '\"';
-        FTP_CMD_REPLY(buf, 7);
+        ftpCmdReply(buf, 7);
       }
       else
       {
         if (Ftp.Directory == DIR_SDCARD2)
           buf[ROOT_DIR_TEMPLATE_LENGTH-2] = '2';
-        FTP_CMD_REPLY(buf, ROOT_DIR_TEMPLATE_LENGTH);
+        ftpCmdReply(buf, ROOT_DIR_TEMPLATE_LENGTH);
       }
       break;
     }
