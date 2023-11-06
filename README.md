@@ -137,8 +137,8 @@ Best performance is achieved with "Class 10" (or better) cards. "Class 4" (or lo
 
 ## FAT16/FAT32 Mode
 You can use SD cards with either FAT16 or FAT32 file system as the first partition.
-In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and must be named **VOL00.PO** - **VOL09.PO** or **VOL0A.PO** - **VOL0F.PO** (up to 16 volumes). However, only the file extension (.PO) and the first 5 characters ("VOLxx") matter.
-The rest of the filename is ignored. So you can use filenames like "VOL02_TotalReplay.po" to keep your files organized.
+In FAT mode, the individual Apple II volumes on the SD card must be stored in the root directory of the card and be named "**VOLxx.PO**", with "xx" any hexadecimal number from **00** to **7F** (up to 128 volumes). However, only the file extension (.PO) and the first 5 characters ("VOLxx") matter.
+The rest of the filename is ignored. So you can use filenames like "VOL21_TotalReplay.po" to keep your files organized.
 Example directory:
 
         VOL00_TotalReplay.po
@@ -147,6 +147,9 @@ Example directory:
         VOL03.po
         VOL04.po
         VOL0F_Foo.po
+        VOL22_Bar.po
+        VOL42_bla.po
+        VOL7F.po
 
 Each volume file needs to contain normal Apple II ProDOS volumes (between 140K to 33MB).
 
@@ -188,6 +191,7 @@ The boot menu allows the selection of the volumes for the card's ProDOS drives 1
 
 * Use the **ARROW KEYS** (or **SPACE**/**,**) to select the active volume for each ProDOS drive and press **RETURN** to confirm.
 * Alternatively press keys **0** to **9** or **A** to **F** to directly select volumes.
+* Press **LEFT**/**RIGHT ARROW** to flip the volume pages (if you have more than 16 volumes per SD card).
 * Press **ESCAPE** to abort and keep the previous drive configuration.
 * Press **I** to enter the IP configuration dialog (if you have a Wiznet adapter, see below).
 
@@ -212,7 +216,7 @@ The [CAD](CAD) folder contains different STL designs for 3D printed brackets, wh
 
 ## FTP Access
 When the Ethernet adapter is installed you can use FTP to remotely access the SD cards. The FTP access is very limited and only allows up- and downloading volumes to the volume files.
-The volumes are shown in two separate directories (SD1 and SD2) and list the volume files VOL00.PO-VOL0F.PO.
+The volumes are shown in two separate directories (SD1 and SD2) and list the volume files VOL00.PO-VOL7F.PO.
 Other files and other directories stored on **FAT** format disks are not accessible via FTP (any unrelated files and folders will stay on the SD cards, but neither be visible nor writable via FTP).
 
 The Apple II access is suspended as soon as any FTP session is active. Disconnect your FTP client to resume Apple II access to the volumes.
@@ -234,7 +238,7 @@ Even if you prepare the SD card using ProDOS images of the maximum supported siz
 You can upload files of any supported size. Small standard 140K floppy disk **ProDOS** images also work (not just large harddrive volumes).
 
 #### SD Cards with RAW Block Mode
-FTP access is also supported for SD cards using "**Raw Block Mode**" (see above). The SD card format is automatically detected. The volumes stored on raw block SD cards are also visible via FTP with standard filenames (VOL00.PO-VOL0F.PO) - just as if the SD card was using a FAT filesystem.
+FTP access is also supported for SD cards using "**Raw Block Mode**" (see above). The SD card format is automatically detected. The volumes stored on raw block SD cards are also visible via FTP with standard filenames (VOL00.PO-VOL7F.PO) - just as if the SD card was using a FAT filesystem.
 
 The normal preparation of SD cards for Raw Block Mode (writing the "Blankvols.PO" to the card, see above) is enough to make these cards also available for FTP access. The directory list of the FTP root directory also shows which format was detected for each SD card (RAW vs FAT).
 
