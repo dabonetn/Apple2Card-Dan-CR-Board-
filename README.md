@@ -131,7 +131,7 @@ This volume can be loaded directly from the DAN][ controller:
 * The reset triggers a wam-start, resets the DAN][ controller and immediately starts the firmware update.
 
 # SD Cards
-Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity.
+Either micro SD or micro SDHC cards may be used - with up to 32 GB capacity. Currently up to 128 ProDOS volumes per SD card are supported. To enable the use of the maximum number supported volumes, a **4GB SD card** is required. In fact, FAT-formatted SD cards would need to be slgihtly larger than 4GB, due to the file system overhead. However, you will rarely need all of these volumes, so 4GB is absolutely fine.
 
 Best performance is achieved with "Class 10" (or better) cards. "Class 4" (or lower) may result in slower disk access.
 
@@ -158,9 +158,11 @@ Each volume file needs to contain normal Apple II ProDOS volumes (between 140K t
 An empty ProDOS volume file of 33MB is provided within the ZIP file [SingleBlankVol.zip](volumes/SingleBlankVol.zip).
 
 ## Raw Block Mode
-Alternatively, raw block mode may be used (SD cards without any filesystem, just using raw data blocks to store the ProDOS volumes on the cards). Only the first 512 MB will be used for raw block mode.
+Alternatively, raw block mode may be used (SD cards without any filesystem, just using raw data blocks to store the ProDOS volumes on the cards). Up to 4GB will be used for raw block mode.
 
-To prepare SD cards for raw block mode, use the [BlankVols.zip](volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB. This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
+To prepare SD cards for raw block mode, use the [BlankVols.zip](volumes/BlankVols.zip) file. Unzip this file. The resulting "Blankvols.PO" file has a size of 512 MB (only covering the first 16 volumes). This needs to be written to a SD card using an utility such as Win32DiskImager or "dd" under linux. This file contains 16 concatenated and properly formatted (empty) ProDOS volumes.
+
+You can simply concatenate this file multiple times to initialize more volumes (up to 128 volumes per SD card are supported). You can also use FTP to access and initialize the volumes individually (see below).
 
 ## Preparing ProDOS Volumes
 ProDOS disk images can be read/written by software such as CiderPress ([a2ciderpress.com](https://a2ciderpress.com/)) so that you can use this to transfer files to and from the Apple II.
