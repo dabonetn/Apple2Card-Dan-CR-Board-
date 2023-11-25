@@ -61,7 +61,9 @@ WAITLOOP = $FCA8
 BELL     = $FBE2
 
 ; APPLE II hardware constants
-SPKR     = $C030
+SPKR       = $C030
+CLRALTCHAR = $C00E    ; clear ALTCHAR: select primary character set
+
 ; keyboard
 KEY_LEFT      =  8+128
 KEY_RIGHT     = 21+128
@@ -85,11 +87,12 @@ BLOCK_COUNT = (BOOT_END - START + 511)/512
 .IFDEF FILE_DEBUG
          .ORG $2000
 .ELSE
-         .ORG $800       ; bootloaders are loaded to this address
+         .ORG $0800       ; bootloaders are loaded to this address
 .ENDIF
 
 START:
          NOP
+         STA CLRALTCHAR  ; ensure "mouse text" is disabled
 .IFDEF FILE_DEBUG        ; this is just for debugging, when loading the program from a file
          LDA #$70        ; slot 7
          STA UNIT
