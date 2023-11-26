@@ -118,7 +118,7 @@ endif
 	@mv $@_ $@
 	@echo "Converting to ProDOS..."
 	@python3 ipconfig/dsk2po.py $@
-	@cp $(APPLE2_DSK_FILE) ../dsk/.
+	@cp $(APPLE2_DSK_FILE:.dsk=.po) ../dsk/.
 	@cp $@ ../dsk/.
 
 list: bin/$(APPLE2_DISK_NAME).po
