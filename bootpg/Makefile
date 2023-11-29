@@ -19,7 +19,7 @@ all: check $(BOOTLOADER_H)
 
 bin/%.h: bin/%.bin tools/file2header.py
 	@echo "Generating Arduino header file $(notdir $<)..."
-	@python3 tools/file2header.py --arduino bootblocks --binary --file $< > $@
+	@python3 tools/file2header.py --arduino $(if $(findstring APPLEIII,$@),APPLE3boot,bootblocks) --binary --file $< > $@
 	@cp $@ ../Apple2Arduino/$(notdir $@)
 	@echo ""
 

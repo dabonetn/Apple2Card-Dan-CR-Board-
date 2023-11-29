@@ -78,7 +78,7 @@ SOS_EXE_HEADER:
 BEGIN:
            SEI                 ; block interrupts
            LDA     ENVREG      ; get environment
-	   STA     ENVTEMP     ; save environment
+           STA     ENVTEMP     ; save environment
            ORA     #$F3        ; enable IO access+ROM+1MHz
            STA     ENVREG
 

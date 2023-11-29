@@ -66,7 +66,8 @@
   #error Selected BOOTPG is not implemented.
 #endif
 
-#define NUMBER_BOOTBLOCKS ((sizeof(bootblocks)+511)/(512*sizeof(uint8_t)))
+// include tiny boot stub for Apple ///
+#include "APPLEIII_bootpg_stub.h"
 
 #ifdef DEBUG_SERIAL
 #ifdef SOFTWARE_SERIAL
@@ -343,10 +344,16 @@ uint8_t read_bootblock(uint8_t rdtype, uint8_t* buf)
         return 0;
   }
 
+  uint32_t BootPgSize = sizeof(bootblocks);
+  const uint8_t *bootpg = bootblocks;
+
   // if the Apple /// bootloader is requested, it has to be loaded from an SD card.
   // We don't have one integrated into the firmware itself...
   if (rdtype == RD_A3_BOOT_BLOCK)
-    return PRODOS_NODEV_ERR;
+  {
+    BootPgSize = sizeof(APPLE3boot);
+    bootpg     = APPLE3boot;
+  }
 
   // otherwise return data of builtin boot program
   a2slot = (unit >> 4) & 0x7;
@@ -354,8 +361,8 @@ uint8_t read_bootblock(uint8_t rdtype, uint8_t* buf)
   uint32_t blkofs = request.blk << 9;
   for (uint32_t i = 0; i < 512; i++)
   {
-    if (blkofs + i < sizeof(bootblocks))
-      buf[i] = pgm_read_byte(&bootblocks[blkofs + i]);
+    if (blkofs + i < BootPgSize)
+      buf[i] = pgm_read_byte(&bootpg[blkofs + i]);
     else
       buf[i] = 0xff;
   }
