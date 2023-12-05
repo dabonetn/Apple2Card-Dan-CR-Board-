@@ -1,13 +1,16 @@
-# DAN][Controller: Apple II Storage Interface, Arduino Interface & Network Interface
+# DAN ][ Controller: Apple II Storage Interface, Network Interface, FTP Server
 
 # Introduction
-The DAN][Controller is a simple and easy to build card that provides two SD cards as mass storage devices to ProDOS.
+The DAN][Controller is a simple and easy to build card that provides **two SD cards as mass storage devices** to ProDOS.
 
-Optionally it can be extended with a network interface using a Wiznet W5500 adapter.
-The network interface provides an optional FTP server to remotely manage the Apple II volumes on the two SD cards. The network interface can also be used by the Apple II itself (using an updated [IP65](https://github.com/profdc9/ip65) network stack).
+Optionally it can be extended with a **network interface using a Wiznet W5500** adapter.
+The network interface provides an optional **FTP server** to remotely manage the Apple II volumes on the two SD cards.
+The network interface can also be used by the Apple II itself (using an updated [IP65](https://github.com/profdc9/ip65) network stack).
 
 The card is based on the ATMEGA328P which is programmed with the Arduino development environment. It uses an 82C55 peripheral interface to connect to the Apple II bus.
 The design uses only five commonly available integrated circuits, the 74HCT08 AND gate, 74HCT32 OR gate, 82C55A peripheral interface, an eprom/eeprom memory chip, and a ATMEGA328P microcontroller, so should be reasonably future-proofed as much as any design for a 40 year old computer can be.
+
+The card is also usable with the **Apple III**, using an driver for Apple III SOS.
 
 ![Apple2Card](pics/DAN2Controller.jpg)
 
@@ -277,6 +280,28 @@ See the [dsk](dsk) folder for an example disk with IP65 examples (telnet client,
 There is also a variant of **ADTPro** with the updated IP65 stack, supporting the DAN][ controller's Ethernet port - see [here](https://github.com/ThorstenBr/adtproDAN2/releases).
 
 Notice that the FTP server on the DAN][ Controller is shutdown whenever the Apple II itself accesses the Ethernet port (using IP65).
+
+# Apple III Support
+The DAN ][ Controller can also be used with the Apple III, which does require some preparation:
+
+### Apple III Hardware Compatibility
+The Apple III's I/O slots are compatible with the Apple II, so the DAN ][ Controller can be plugged into the Apple III normally.
+
+### Firmware Updates on the Apple III
+Firmware updates of the DAN ][ Controller are also supported on the Apple III. The ZIP file in [releases](https://github.com/ThorstenBr/Apple2Card/releases) contains appropriate disks with the firmware update utility for the Apple III.
+
+### Apple III SOS Driver
+Apple III SOS always needs a driver to support a device (unlike Apple II ProDOS). There are two Apple III drivers which can be used with the DAN ][ Controller and work very well:
+
+  1. The [DAN2on3 driver](https://github.com/ThorstenBr/DAN2on3), which was made specifically for the DAN ][ Controller. This driver is installed just like the original Profile driver - and needs to be added to your applications' boot disks.
+  2. Alternatively, the [soshdboot](https://github.com/robjustice/soshdboot) project provides a customized bootloader and SOS kernel which have integrated support for ProDOS interface cards. Volume images based on this project also support the DAN ][ Controller and can also be bootstrapped from the DAN ][ Controller.
+
+### Configuration on the Apple III
+To configure the DAN ][ Controller (select the active volume images) several methods are supported:
+
+* There is an Apple III boot disk to configure the DAN ][ Controller. See the ZIP file provided by the [DAN2on3 driver](https://github.com/ThorstenBr/DAN2on3) project containing the Apple III boot disk for configuration.
+* Alternatively, you could install a [custom Apple III ROM](https://github.com/ThorstenBr/Apple_III_Custom_ROM). This project provides a custom ROM which supports configuring the DAN ][ Controller and even bootstrapping "soshdboot" volume images, without using any floppy disk in the Apple III.
+* Finally, you can also run the "*Apple ][ Emulation*" disk on the Apple III. And then call the DAN ][ Controller's builtin Apple II configuration menu, e.g. by calling "PR#1" (when the DAN ][ Controller was installed in slot #1).
 
 # License
 Copyright (c) 2022 Daniel L. Marks<br>
