@@ -5,6 +5,13 @@
   )
 
   (paper "A4")
+  (title_block
+    (title "DAN ][ Controller")
+    (date "2023-10-03")
+    (rev "1.1.1")
+    (company "Apple ][ Forever!")
+  )
+
   (layers
     (0 "F.Cu" signal)
     (31 "B.Cu" signal)
@@ -761,7 +768,7 @@
     )
   )
 
-  (footprint "Apple2Card:MicroSD_Card_TB" (layer "F.Cu")
+  (footprint "Apple2Card:GCT-MEM2055-00-190-01-A" (layer "F.Cu")
     (tedit 57311858) (tstamp 32e8a92b-ca4b-4888-875a-ea6a5ff2bee6)
     (at 46.52 73.91 90)
     (descr "http://www.farnell.com/datasheets/1917242.pdf")

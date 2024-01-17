@@ -14,8 +14,10 @@ The card is also usable with the **Apple III**, using an driver for Apple III SO
 
 ![Apple2Card](pics/DAN2Controller.jpg)
 
-# Gerber Files & PCBs
+# Gerber Files, PCBs & BOM
 You can directly download and send the [Apple2Card-v1.1.1.zip](Apple2Card/Gerber/Apple2Card-v1.1.1.zip) to a PCB service like JLCPCB or PCBway, for example.
+
+There is also an [interactive BOM](https://htmlpreview.github.io/?https://github.com/ThorstenBr/Apple2Card/blob/main/Apple2Card/bom/ibom.html).
 
 ![Apple2Card](Apple2Card/Apple2Card.png)
 
